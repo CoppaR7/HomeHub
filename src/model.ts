@@ -73,14 +73,19 @@ export function conditionLabel(code: number) {
     snow: 'Neve',
   }[condition(code)]
 }
-export function getRainAlert(days: Day[]) {
-  const index = days.findIndex((day) => condition(day.code) === 'rain')
-  if (index < 0) return null
-  if (index === 0) return 'oggi'
-  if (index === 1) return 'domani'
-  return new Date(`${days[index].date}T12:00:00`).toLocaleDateString('it-IT', {
-    weekday: 'long',
-  })
+export function currentDateKey(now = new Date()) {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'Europe/Rome',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now)
+  const part = (type: string) => parts.find((item) => item.type === type)!.value
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
+export function getRainAlert(days: Day[], now = new Date()) {
+  const today = days.find((day) => day.date === currentDateKey(now))
+  return today && condition(today.code) === 'rain' ? 'oggi' : null
 }
 function validStored(key: string, value: unknown) {
   if (key === 'homehub.waste')

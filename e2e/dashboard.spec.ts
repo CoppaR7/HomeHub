@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test'
 
+test.beforeEach(async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-22T10:00:00+02:00'))
+})
+
 test('widget, avvisi e salvataggio funzionano su desktop, tablet e telefono', async ({
   page,
 }) => {
@@ -18,7 +22,7 @@ test('widget, avvisi e salvataggio funzionano su desktop, tablet e telefono', as
             '2026-10-27',
             '2026-10-28',
           ],
-          weather_code: [0, 2, 61, 3, 0, 71, 0],
+          weather_code: [61, 2, 61, 3, 0, 71, 0],
           temperature_2m_max: [22, 21, 17, 19, 23, 4, 22],
           temperature_2m_min: [14, 13, 12, 11, 14, 0, 14],
         },
@@ -93,5 +97,37 @@ test('rete non disponibile e dimostrazione sono riconoscibili', async ({
   await page.getByRole('button', { name: 'Mostra esempio' }).click()
   await expect(page.getByText('Dati dimostrativi')).toBeVisible()
   await expect(page.locator('.day')).toHaveCount(7)
-  await expect(page.getByText(/Esempio meteo/)).toBeVisible()
+  await expect(page.getByText("prendi l'ombrello!")).toHaveCount(0)
+  await expect(page.locator('.day').filter({ hasText: 'Pioggia' })).toHaveCount(
+    1,
+  )
+})
+
+test('l’ombrello non compare se la pioggia è prevista solo nei prossimi giorni', async ({
+  page,
+}) => {
+  await page.route('https://api.open-meteo.com/**', (route) =>
+    route.fulfill({
+      json: {
+        daily: {
+          time: [
+            '2026-10-22',
+            '2026-10-23',
+            '2026-10-24',
+            '2026-10-25',
+            '2026-10-26',
+            '2026-10-27',
+            '2026-10-28',
+          ],
+          weather_code: [0, 61, 61, 3, 0, 71, 0],
+          temperature_2m_max: [22, 21, 17, 19, 23, 4, 22],
+          temperature_2m_min: [14, 13, 12, 11, 14, 0, 14],
+        },
+      },
+    }),
+  )
+  await page.goto('/')
+  await expect(page.locator('.day')).toHaveCount(7)
+  await expect(page.getByText('Tutto a posto!')).toBeVisible()
+  await expect(page.getByText("prendi l'ombrello!")).toHaveCount(0)
 })

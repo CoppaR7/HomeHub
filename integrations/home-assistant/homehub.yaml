@@ -1,0 +1,56 @@
+# Home Assistant package: four persistent reminder switches.
+# Do not add "initial: false": omitting it restores reminders after a restart.
+# Device credentials and Alexa account linking belong in Home Assistant's UI.
+input_boolean:
+  homehub_plastica:
+    name: Promemoria plastica
+    icon: mdi:recycle
+  homehub_carta:
+    name: Promemoria carta
+    icon: mdi:package-variant
+  homehub_indifferenziata:
+    name: Promemoria indifferenziata
+    icon: mdi:trash-can
+  homehub_organico:
+    name: Promemoria organico
+    icon: mdi:leaf
+
+# Alexa Devices forwards Echo voice-interaction events. It must first be
+# configured by the owner in Home Assistant, with Amazon app-based MFA.
+# Keep this filter: unrelated event entities must never activate reminders.
+automation:
+  - id: homehub_alexa_voice_reminders
+    alias: HomeHub - promemoria dalle frasi Alexa
+    mode: queued
+    max: 10
+    triggers:
+      - trigger: event
+        event_type: state_changed
+    variables:
+      spoken: >-
+        {% set entity = trigger.event.data.get('new_state') %}
+        {{ (entity.attributes.get('voice_command', '') if entity else '')
+           | lower | trim | regex_replace('^alexa[,\\s]*', '')
+           | regex_replace('[.!?]+$', '') | trim }}
+      reminders:
+        plastica piena: input_boolean.homehub_plastica
+        carta piena: input_boolean.homehub_carta
+        indifferenziata piena: input_boolean.homehub_indifferenziata
+        organico pieno: input_boolean.homehub_organico
+    conditions:
+      - condition: template
+        value_template: >-
+          {% set entity_id = trigger.event.data.get('entity_id', '') %}
+          {% set old = trigger.event.data.get('old_state') %}
+          {% set new = trigger.event.data.get('new_state') %}
+          {{ entity_id.startswith('event.')
+             and entity_id in integration_entities('alexa_devices')
+             and old is not none and new is not none
+             and old.state not in ['unknown', 'unavailable']
+             and new.state not in ['unknown', 'unavailable']
+             and old.state != new.state
+             and spoken in reminders }}
+    actions:
+      - action: input_boolean.turn_on
+        target:
+          entity_id: '{{ reminders[spoken] }}'

@@ -989,3 +989,25 @@ footer > span {
     min-height: 30px;
   }
 }
+.home-empty {
+  padding: 25px 0;
+  color: #768373;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.connection-error {
+  color: #a04d32 !important;
+  font-size: 12px;
+  line-height: 1.7;
+  padding: 8px 0 15px;
+}
+.home-connection .inline-form {
+  flex-wrap: wrap;
+}
+.home-connection input {
+  flex-basis: 180px;
+}
+.lights-list:has(.light-row:nth-child(5)) {
+  max-height: 340px;
+  overflow-y: auto;
+}

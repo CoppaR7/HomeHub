@@ -26,6 +26,7 @@ import {
   INITIAL_LIGHTS,
   WASTE,
   condition,
+  currentDateKey,
   getRainAlert,
   parseVoiceCommand,
   readStored,
@@ -35,6 +36,9 @@ import {
   type Waste,
 } from './model'
 import { loadForecast, searchPlaces } from './weather'
+import HomeConnection from './HomeConnection'
+import { useHomeAssistant } from './useHomeAssistant'
+import { homeAssistant, REMINDER_ENTITIES } from './home-assistant'
 import './App.css'
 
 function useSaved<T>(key: string, initial: T) {
@@ -80,11 +84,13 @@ function Alert({
   title,
   description,
   onDismiss,
+  disabled,
 }: {
   icon: ReactNode
   title: string
   description: string
   onDismiss?: () => void
+  disabled?: boolean
 }) {
   return (
     <div className="notice">
@@ -97,6 +103,7 @@ function Alert({
         <button
           className="done-button"
           onClick={onDismiss}
+          disabled={disabled}
           aria-label={`Segna come fatto: ${title}`}
         >
           <Check size={19} />
@@ -107,6 +114,7 @@ function Alert({
   )
 }
 export default function App() {
+  const home = useHomeAssistant()
   const [now, setNow] = useState(() => new Date())
   const [lights, setLights, lightsError] = useSaved<Light[]>(
     'homehub.lights',
@@ -132,6 +140,7 @@ export default function App() {
   const [command, setCommand] = useState('')
   const [commandStatus, setCommandStatus] = useState('')
   const [displayStatus, setDisplayStatus] = useState('')
+  const today = currentDateKey(now)
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000)
@@ -164,12 +173,33 @@ export default function App() {
         }
       })
     return () => controller.abort()
-  }, [place, refresh])
+  }, [place, refresh, today])
   const weatherDays =
-    weatherState === 'ready' || weatherState === 'demo' ? days : []
-  const rain = getRainAlert(weatherDays)
-  const noticeCount = waste.length + (rain ? 1 : 0)
-  const litCount = lights.filter((light) => light.on).length
+    weatherState === 'ready' || weatherState === 'demo'
+      ? days.filter((day) => day.date >= today)
+      : []
+  const rain = getRainAlert(weatherDays, now)
+  const visibleLights = home.enabled
+    ? Object.values(home.entities)
+        .filter((entity) => entity.entity_id.startsWith('light.'))
+        .map((entity) => ({
+          id: entity.entity_id,
+          name: String(entity.attributes.friendly_name || entity.entity_id),
+          on: entity.state === 'on',
+          available:
+            home.status === 'connected' && ['on', 'off'].includes(entity.state),
+        }))
+        .sort((left, right) => left.name.localeCompare(right.name, 'it'))
+    : lights.map((light) => ({ ...light, available: true }))
+  const visibleWaste = home.enabled
+    ? (Object.keys(REMINDER_ENTITIES) as Waste[]).filter(
+        (item) => home.entities[REMINDER_ENTITIES[item]]?.state === 'on',
+      )
+    : waste
+  const noticeCount = visibleWaste.length + (rain ? 1 : 0)
+  const litCount = visibleLights.filter(
+    (light) => light.on && light.available,
+  ).length
   const dateLabel = now.toLocaleDateString('it-IT', {
     weekday: 'long',
     day: 'numeric',
@@ -196,6 +226,10 @@ export default function App() {
     }
   }
   function addWaste(item: Waste) {
+    if (home.enabled) {
+      void homeAssistant.setEntity(REMINDER_ENTITIES[item], true)
+      return
+    }
     setWaste((previous) =>
       previous.includes(item) ? previous : [...previous, item],
     )
@@ -360,17 +394,10 @@ export default function App() {
                 </p>
               </div>
               <div>
-                <h3>Alexa e luci smart</h3>
-                <p>
-                  Le luci sono una dimostrazione e non comandano dispositivi
-                  reali. Il collegamento richiede un servizio compatibile con i
-                  tuoi modelli TP-Link e con le app delle altre lampadine, oltre
-                  a una configurazione separata per Alexa.
-                </p>
+                <HomeConnection />
                 <p>
                   Per mantenere acceso il tablet, configura lo schermo nelle
-                  impostazioni Android. Per l’uso quotidiano servirà pubblicare
-                  l’app su un indirizzo HTTPS.
+                  impostazioni Android.
                 </p>
               </div>
             </div>
@@ -388,39 +415,75 @@ export default function App() {
                 </span>
                 <h2 id="lights-heading">Le tue luci</h2>
               </div>
-              <span className="badge">DEMO</span>
+              <span className="badge">
+                {home.enabled
+                  ? home.status === 'connected'
+                    ? 'CASA'
+                    : 'NON COLLEGATA'
+                  : 'DEMO'}
+              </span>
             </div>
             <p className="card-description">Un tocco per cambiare atmosfera.</p>
             <div className="lights-list">
-              {lights.map((light) => (
+              {visibleLights.length === 0 && (
+                <div className="home-empty">
+                  <p>
+                    {home.status === 'connected'
+                      ? 'Nessuna luce trovata. Aggiungi le lampadine in Home Assistant.'
+                      : 'Collega Home Assistant dalle impostazioni per vedere le luci.'}
+                  </p>
+                  <button
+                    className="text-button"
+                    onClick={() => setSettings(true)}
+                  >
+                    Apri impostazioni
+                  </button>
+                </div>
+              )}
+              {visibleLights.map((light) => (
                 <div
                   key={light.id}
-                  className={`light-row ${light.on ? 'light-on' : ''}`}
+                  className={`light-row ${light.on && light.available ? 'light-on' : ''}`}
                 >
                   <span className="bulb-icon">
                     <Lightbulb
-                      fill={light.on ? 'currentColor' : 'none'}
+                      fill={
+                        light.on && light.available ? 'currentColor' : 'none'
+                      }
                       size={24}
                       strokeWidth={1.5}
                     />
                   </span>
                   <div className="light-name">
                     <h3>{light.name}</h3>
-                    <span>{light.on ? 'Accesa' : 'Spenta'}</span>
+                    <span>
+                      {!light.available
+                        ? 'Non disponibile'
+                        : home.pending.includes(light.id)
+                          ? 'In attesa di conferma…'
+                          : light.on
+                            ? 'Accesa'
+                            : 'Spenta'}
+                    </span>
                   </div>
                   <button
                     role="switch"
                     aria-checked={light.on}
                     aria-label={light.name}
                     className="switch"
+                    disabled={
+                      !light.available || home.pending.includes(light.id)
+                    }
                     onClick={() =>
-                      setLights((previous) =>
-                        previous.map((item) =>
-                          item.id === light.id
-                            ? { ...item, on: !item.on }
-                            : item,
-                        ),
-                      )
+                      home.enabled
+                        ? void homeAssistant.setEntity(light.id, !light.on)
+                        : setLights((previous) =>
+                            previous.map((item) =>
+                              item.id === light.id
+                                ? { ...item, on: !item.on }
+                                : item,
+                            ),
+                          )
                     }
                   >
                     <span />
@@ -431,10 +494,19 @@ export default function App() {
             <div className="card-foot">
               <span>
                 <span className={`small-dot ${litCount ? 'orange' : 'gray'}`} />
-                {litCount} di {lights.length} accese
+                {home.enabled && home.status !== 'connected'
+                  ? 'Stati non aggiornati'
+                  : `${litCount} di ${visibleLights.length} accese`}
               </span>
-              <span>Simulazione locale</span>
+              <span>
+                {home.enabled ? 'Home Assistant' : 'Simulazione locale'}
+              </span>
             </div>
+            {home.enabled && home.error && (
+              <p className="connection-error" role="alert">
+                {home.error}
+              </p>
+            )}
           </section>
           <section
             className="card weather-card"
@@ -485,13 +557,13 @@ export default function App() {
               </div>
             )}
             <div className="week">
-              {weatherDays.map((day, index) => (
+              {weatherDays.map((day) => (
                 <div
-                  className={`day ${index === 0 ? 'today' : ''}`}
+                  className={`day ${day.date === today ? 'today' : ''}`}
                   key={day.date}
                 >
                   <span className="day-label">
-                    {index === 0
+                    {day.date === today
                       ? 'Oggi'
                       : new Date(`${day.date}T12:00:00`).toLocaleDateString(
                           'it-IT',
@@ -557,72 +629,118 @@ export default function App() {
                   description={`${weatherState === 'demo' ? 'Esempio meteo · ' : ''}Pioggia prevista ${rain}.`}
                 />
               )}
-              {waste.map((item) => (
+              {visibleWaste.map((item) => (
                 <Alert
                   key={item}
                   icon={<Trash2 size={27} />}
                   title={WASTE[item].message}
-                  description="Da portare via quando esci."
+                  description={
+                    home.enabled && home.status !== 'connected'
+                      ? 'Ultimo stato ricevuto: collegamento interrotto.'
+                      : 'Da portare via quando esci.'
+                  }
+                  disabled={
+                    home.enabled &&
+                    (home.status !== 'connected' ||
+                      home.pending.includes(REMINDER_ENTITIES[item]))
+                  }
                   onDismiss={() =>
-                    setWaste((previous) =>
-                      previous.filter((value) => value !== item),
-                    )
+                    home.enabled
+                      ? void homeAssistant.setEntity(
+                          REMINDER_ENTITIES[item],
+                          false,
+                        )
+                      : setWaste((previous) =>
+                          previous.filter((value) => value !== item),
+                        )
                   }
                 />
               ))}
-              {noticeCount === 0 && (
-                <div className="empty-notices">
-                  <Check size={30} />
-                  <div>
-                    <h3>
-                      {weatherState === 'ready' || weatherState === 'demo'
-                        ? 'Tutto a posto!'
-                        : 'Nessun promemoria manuale.'}
-                    </h3>
-                    <p>
-                      {weatherState === 'ready' || weatherState === 'demo'
-                        ? 'Nessun promemoria da ricordare.'
-                        : 'Gli avvisi meteo compariranno quando saranno disponibili le previsioni.'}
-                    </p>
+              {noticeCount === 0 &&
+                !(
+                  home.enabled &&
+                  (home.status !== 'connected' ||
+                    Object.values(REMINDER_ENTITIES).some(
+                      (id) => !['on', 'off'].includes(home.entities[id]?.state),
+                    ))
+                ) && (
+                  <div className="empty-notices">
+                    <Check size={30} />
+                    <div>
+                      <h3>
+                        {weatherState === 'ready' || weatherState === 'demo'
+                          ? 'Tutto a posto!'
+                          : 'Nessun promemoria manuale.'}
+                      </h3>
+                      <p>
+                        {weatherState === 'ready' || weatherState === 'demo'
+                          ? 'Nessun promemoria da ricordare.'
+                          : 'Gli avvisi meteo compariranno quando saranno disponibili le previsioni.'}
+                      </p>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              {noticeCount === 0 &&
+                home.enabled &&
+                (home.status !== 'connected' ||
+                  Object.values(REMINDER_ENTITIES).some(
+                    (id) => !['on', 'off'].includes(home.entities[id]?.state),
+                  )) && (
+                  <p className="connection-error">
+                    I promemoria di casa non sono ancora disponibili. Controlla
+                    il collegamento e i quattro interruttori in Home Assistant.
+                  </p>
+                )}
             </div>
             <details className="add-notice">
               <summary>
                 <Plus size={17} />
-                Aggiungi un promemoria<span>Alexa da collegare</span>
+                Aggiungi un promemoria
+                <span>
+                  {home.enabled ? 'Promemoria condivisi' : 'Alexa da collegare'}
+                </span>
               </summary>
               <p>
-                Puoi aggiungere un avviso a mano, oppure provare una frase. La
-                prova non ascolta la voce e non è collegata ad Alexa.
+                {home.enabled
+                  ? 'Puoi aggiungere un avviso qui oppure attivarlo tramite Alexa, dopo avere configurato il collegamento vocale in Home Assistant.'
+                  : 'Puoi aggiungere un avviso a mano, oppure provare una frase. La prova non ascolta la voce e non è collegata ad Alexa.'}
               </p>
               <div className="waste-buttons">
                 {(Object.keys(WASTE) as Waste[]).map((item) => (
                   <button
                     key={item}
                     onClick={() => addWaste(item)}
-                    disabled={waste.includes(item)}
+                    disabled={
+                      visibleWaste.includes(item) ||
+                      (home.enabled &&
+                        (home.status !== 'connected' ||
+                          home.pending.includes(REMINDER_ENTITIES[item]) ||
+                          !['on', 'off'].includes(
+                            home.entities[REMINDER_ENTITIES[item]]?.state,
+                          )))
+                    }
                   >
                     <Plus size={15} />
                     {WASTE[item].label}
                   </button>
                 ))}
               </div>
-              <form className="inline-form" onSubmit={simulateVoice}>
-                <label className="sr-only" htmlFor="voice">
-                  Prova una frase Alexa
-                </label>
-                <input
-                  id="voice"
-                  value={command}
-                  onChange={(event) => setCommand(event.target.value)}
-                  placeholder="Alexa, plastica piena"
-                  maxLength={100}
-                  required
-                />
-                <button className="primary-button">Prova frase</button>
-              </form>
+              {!home.enabled && (
+                <form className="inline-form" onSubmit={simulateVoice}>
+                  <label className="sr-only" htmlFor="voice">
+                    Prova una frase Alexa
+                  </label>
+                  <input
+                    id="voice"
+                    value={command}
+                    onChange={(event) => setCommand(event.target.value)}
+                    placeholder="Alexa, plastica piena"
+                    maxLength={100}
+                    required
+                  />
+                  <button className="primary-button">Prova frase</button>
+                </form>
+              )}
               <p className="form-status" role="status">
                 {commandStatus}
               </p>

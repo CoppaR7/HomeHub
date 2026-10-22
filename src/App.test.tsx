@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { CAMERANO, WASTE } from './model'
+import { CAMERANO, WASTE, getRainAlert } from './model'
 import { loadForecast } from './weather'
 
 function forecast(code = 61) {
@@ -23,12 +23,15 @@ function forecast(code = 61) {
   }
 }
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date('2026-10-22T10:00:00+02:00'))
   vi.stubGlobal(
     'fetch',
     vi.fn().mockResolvedValue({ ok: true, json: async () => forecast() }),
   )
 })
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
@@ -51,6 +54,18 @@ describe('la schermata HomeHub', () => {
     } as Response)
     render(<App />)
     expect(await screen.findByText('Tutto a posto!')).toBeVisible()
+    expect(screen.queryByText("prendi l'ombrello!")).not.toBeInTheDocument()
+  })
+  it('non mostra l’ombrello se piove domani ma oggi è sereno', async () => {
+    const data = forecast(0)
+    data.daily.weather_code[1] = 61
+    vi.mocked(fetch).mockResolvedValue({
+      ok: true,
+      json: async () => data,
+    } as Response)
+    const { container } = render(<App />)
+    expect(await screen.findByText('Tutto a posto!')).toBeVisible()
+    expect(container.querySelector('.day:nth-child(2) .rain')).not.toBeNull()
     expect(screen.queryByText("prendi l'ombrello!")).not.toBeInTheDocument()
   })
   it('salva lo stato dimostrativo delle luci dopo il cambio e il ricaricamento', async () => {
@@ -155,6 +170,15 @@ describe('la schermata HomeHub', () => {
   })
 })
 describe('i dati del servizio meteo', () => {
+  it('a mezzanotte italiana considera la nuova giornata anche con previsioni già caricate', () => {
+    const days = [
+      { date: '2026-10-22', code: 61, label: 'Pioggia', max: 18, min: 10 },
+      { date: '2026-10-23', code: 0, label: 'Sereno', max: 21, min: 11 },
+    ]
+    expect(getRainAlert(days, new Date('2026-10-22T21:59:59Z'))).toBe('oggi')
+    expect(getRainAlert(days, new Date('2026-10-22T22:00:00Z'))).toBeNull()
+    expect(getRainAlert([], new Date('2026-10-22T10:00:00Z'))).toBeNull()
+  })
   it('rifiuta previsioni incomplete', async () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: true,

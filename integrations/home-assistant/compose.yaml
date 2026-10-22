@@ -1,0 +1,13 @@
+# QNAP TS-216G (ARM64), Container Station > Applications > Create application.
+# Prepare /share/Container/homehub/config before starting this application.
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:2026.10.2
+    container_name: homehub-homeassistant
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      TZ: Europe/Rome
+    volumes:
+      - /share/Container/homehub/config:/config
+    stop_grace_period: 30s

@@ -1,0 +1,6 @@
+# For a NEW instance only. Merge the package include into an existing instance.
+default_config:
+homeassistant:
+  name: Casa
+  time_zone: Europe/Rome
+  packages: !include_dir_named packages
