@@ -73,7 +73,7 @@ Il codice sorgente è sul branch `main` di `CoppaR7/HomeHub`. GitHub Pages serve
 npm run build -- --base=/HomeHub/ --outDir=/workspace/scratch/homehub-pages --emptyOutDir
 ```
 
-Per aggiornare il sito, aggiungi `.nojekyll` all’output, verifica la build e pubblicane i contenuti alla radice di `gh-pages`, preservando la cronologia senza force push. Il push del solo codice su `main` non aggiorna automaticamente il sito in questa configurazione.
+Per aggiornare il sito, aggiungi `.nojekyll` all’output, verifica la build e pubblicane i contenuti alla radice di `gh-pages`, preservando la cronologia senza force push. Il push del solo codice su `main` non aggiorna automaticamente il sito in questa configurazione. Il branch `gh-pages` contiene anche `downloads/` con i pacchetti installabili: preservare questi file quando si svuota la cartella di build e reinserirli prima di pubblicare, per mantenere validi i collegamenti di download.
 
 `npm run build` senza opzioni genera `dist/` con base `/`; `npm run preview` serve per controllarla localmente. I file QNAP richiedono invece il percorso `/local/homehub/` e vanno prodotti con lo script dedicato.
 
