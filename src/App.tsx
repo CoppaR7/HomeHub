@@ -37,6 +37,7 @@ import {
 } from './model'
 import { loadForecast, searchPlaces } from './weather'
 import HomeConnection from './HomeConnection'
+import ShoppingList from './ShoppingList'
 import { useHomeAssistant } from './useHomeAssistant'
 import { homeAssistant, REMINDER_ENTITIES } from './home-assistant'
 import './App.css'
@@ -746,6 +747,7 @@ export default function App() {
               </p>
             </details>
           </section>
+          <ShoppingList />
         </div>
         <footer>
           <span>

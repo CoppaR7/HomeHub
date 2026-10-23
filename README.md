@@ -11,6 +11,18 @@ Dashboard in italiano per il tablet all’ingresso: luci, meteo settimanale e pr
 - **Senza collegamento domestico:** luci di esempio e promemoria salvati soltanto nel browser. La casella per provare le frasi è una simulazione esplicita.
 - **Con Home Assistant:** accesso OAuth nella sua pagina di login; nomi e stati delle luci ricevuti dal server; comandi di accensione/spegnimento con conferma; quattro promemoria condivisi. “Fatto” spegne il promemoria sul server. Nessuna password o chiave è inclusa nel codice. La sessione è conservata nella scheda tramite `sessionStorage` e rimossa con “Scollega”. Una disconnessione sospende i comandi e segnala che gli stati non sono aggiornati.
 
+## Lista Bring! e aggiornamento QNAP
+
+Il widget **La spesa Bring!** usa la sessione Home Assistant esistente e l’entità `todo.casettolina`. Mostra gli articoli da acquistare, con le descrizioni disponibili; una spunta aggiorna l’articolo su Bring! tramite `todo.update_item` (`completed`). HomeHub rilegge la lista prima di togliere l’articolo. Non sono richieste credenziali Bring! aggiuntive. La lista si aggiorna ogni 30 secondi, alle variazioni dell’entità e con il pulsante di aggiornamento. Errori e disconnessioni sospendono le spunte senza inventare acquisti o liste vuote.
+
+Per un HomeHub **già installato**, genera il pacchetto con i soli file web:
+
+```bash
+python scripts/package-qnap.py --update
+```
+
+Segui la [guida di aggiornamento e ripristino](integrations/home-assistant/AGGIORNAMENTO.md). Il pacchetto non contiene YAML, Compose o configurazioni Home Assistant: preserva luci, integrazioni, preferenze e promemoria Alexa. Le prove automatiche simulano Home Assistant; la sincronizzazione con l’account Bring! reale richiede la verifica sul NAS.
+
 ## NAS QNAP e Alexa senza abbonamento
 
 L’utente dispone di **QNAP TS-216G con Container Station** e usa le skill **Tapo, Meross, AvatarControls e Smart Life**. È stato scelto un percorso **senza Home Assistant Cloud**.
@@ -59,7 +71,7 @@ npm run test:watch
 npm run format
 ```
 
-La suite comprende 26 test per meteo, cambio del giorno, promemoria, persistenza, accesso Home Assistant, rifiuto di callback estranei, conferma dei comandi e gestione degli errori. Le prove browser comprendono nove casi senza backend e tre casi opzionali con una vera istanza Home Assistant dedicata. Questi ultimi vengono saltati se `HOMEHUB_HA_TEST_CREDENTIALS` non è impostato al percorso di un file privato di test. Per il collaudo sono state usate luci della piattaforma demo di Home Assistant e modifiche dei promemoria sul server: non sono test di lampadine fisiche o comandi Echo.
+La suite comprende 36 test per meteo, cambio del giorno, promemoria, persistenza, accesso Home Assistant, rifiuto di callback estranei, conferma dei comandi e gestione degli errori. Le prove browser comprendono nove casi senza backend, tre casi Bring! con WebSocket Home Assistant simulato e tre casi opzionali con una vera istanza Home Assistant dedicata. Questi ultimi vengono saltati se `HOMEHUB_HA_TEST_CREDENTIALS` non è impostato al percorso di un file privato di test. Per il collaudo sono state usate luci della piattaforma demo di Home Assistant e modifiche dei promemoria sul server: non sono test di lampadine fisiche o comandi Echo.
 
 Playwright usa `/usr/bin/chromium` quando disponibile. È possibile indicare un altro browser con `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Nel cloud non occorre scaricare un browser aggiuntivo. Le prove sul formato tablet non equivalgono a una prova su un dispositivo Android fisico.
 

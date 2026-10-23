@@ -1011,3 +1011,42 @@ footer > span {
   max-height: 340px;
   overflow-y: auto;
 }
+
+.shopping-card {
+  grid-column: 1 / -1;
+}
+.shopping-list {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0;
+}
+.shopping-list li + li {
+  border-top: 1px solid var(--border, #e8e6df);
+}
+.shopping-list label {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 0;
+  min-height: 48px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.shopping-list input {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  accent-color: #477468;
+  cursor: pointer;
+}
+.shopping-list input:disabled {
+  cursor: default;
+}
+.shopping-list small {
+  display: block;
+  margin-top: 4px;
+  font-size: 14px;
+}
+.shopping-list strong {
+  font-weight: 500;
+}

@@ -17,6 +17,24 @@ export const REMINDER_ENTITIES: Record<Waste, string> = {
   indifferenziata: 'input_boolean.homehub_indifferenziata',
   organico: 'input_boolean.homehub_organico',
 }
+export const SHOPPING_ENTITY = 'todo.casettolina'
+export type ShoppingItem = {
+  uid: string
+  summary: string
+  description?: string
+}
+export type ShoppingSnapshot = {
+  items: ShoppingItem[]
+  status: 'idle' | 'loading' | 'ready' | 'error'
+  pending: string[]
+  error: string
+}
+const emptyShopping = (): ShoppingSnapshot => ({
+  items: [],
+  status: 'idle',
+  pending: [],
+  error: '',
+})
 const CONFIG_KEY = 'homehub.home-assistant'
 const TOKEN_KEY = 'homehub.home-assistant.session'
 const NONCE_KEY = 'homehub.home-assistant.login'
@@ -26,6 +44,7 @@ export type HomeSnapshot = {
   url: string
   status: Status
   entities: HassEntities
+  shopping: ShoppingSnapshot
   pending: string[]
   error: string
 }
@@ -100,6 +119,8 @@ export class HomeAssistantClient {
   private job?: Promise<void>
   private generation = 0
   private entityDeadline?: ReturnType<typeof setTimeout>
+  private shoppingTimer?: ReturnType<typeof setTimeout>
+  private shoppingRequest = 0
   private state: HomeSnapshot
 
   constructor() {
@@ -107,6 +128,7 @@ export class HomeAssistantClient {
     this.state = {
       ...config,
       status: config.enabled ? 'disconnected' : 'idle',
+      shopping: emptyShopping(),
       entities: {},
       pending: [],
       error: '',
@@ -153,6 +175,8 @@ export class HomeAssistantClient {
     }
     const generation = ++this.generation
     clearTimeout(this.entityDeadline)
+    clearTimeout(this.shoppingTimer)
+    ++this.shoppingRequest
     this.unsubscribeEntities?.()
     this.connection?.close()
     this.connection = undefined
@@ -160,6 +184,7 @@ export class HomeAssistantClient {
       enabled: true,
       url,
       status: 'connecting',
+      shopping: emptyShopping(),
       entities: {},
       pending: [],
       error: '',
@@ -228,7 +253,10 @@ export class HomeAssistantClient {
       connection.addEventListener('disconnected', () => {
         if (generation === this.generation) {
           clearTimeout(this.entityDeadline)
+          clearTimeout(this.shoppingTimer)
+          ++this.shoppingRequest
           this.update({
+            shopping: { ...this.state.shopping, pending: [], status: 'idle' },
             status: 'disconnected',
             error:
               'Collegamento interrotto. Riprovo a connettermi; gli stati delle luci non sono aggiornati.',
@@ -255,7 +283,15 @@ export class HomeAssistantClient {
       this.unsubscribeEntities = subscribeEntities(connection, (entities) => {
         if (generation === this.generation && connection.connected) {
           clearTimeout(this.entityDeadline)
+          const previous = this.state.entities[SHOPPING_ENTITY]
+          const reconnecting = this.state.status !== 'connected'
           this.update({ entities, status: 'connected', error: '' })
+          if (
+            reconnecting ||
+            previous?.state !== entities[SHOPPING_ENTITY]?.state ||
+            previous?.last_updated !== entities[SHOPPING_ENTITY]?.last_updated
+          )
+            void this.refreshShopping()
         }
       })
     } catch (error) {
@@ -276,6 +312,8 @@ export class HomeAssistantClient {
   disconnect = async () => {
     ++this.generation
     clearTimeout(this.entityDeadline)
+    clearTimeout(this.shoppingTimer)
+    ++this.shoppingRequest
     this.unsubscribeEntities?.()
     this.connection?.close()
     this.connection = undefined
@@ -289,6 +327,7 @@ export class HomeAssistantClient {
     this.update({
       enabled: false,
       status: 'idle',
+      shopping: emptyShopping(),
       entities: {},
       pending: [],
       error: '',
@@ -301,6 +340,164 @@ export class HomeAssistantClient {
           error:
             'Collegamento rimosso dal tablet. Per revocare anche la sessione sul server, usa il profilo di Home Assistant.',
         })
+      }
+    }
+  }
+  private shoppingAvailable() {
+    const entity = this.state.entities[SHOPPING_ENTITY]
+    return (
+      this.state.status === 'connected' &&
+      this.connection?.connected &&
+      entity &&
+      !['unavailable', 'unknown'].includes(entity.state)
+    )
+  }
+  private async shoppingCall(service: string, data: Record<string, unknown>) {
+    const connection = this.connection!
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    try {
+      return await Promise.race([
+        connection.sendMessagePromise<{
+          response?: Record<string, { items: ShoppingItem[] }>
+        }>({
+          type: 'call_service',
+          domain: 'todo',
+          service,
+          target: { entity_id: SHOPPING_ENTITY },
+          service_data: data,
+          ...(service === 'get_items' ? { return_response: true } : {}),
+        }),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(
+            () => reject(new Error('Bring! non ha risposto. Riprova.')),
+            10000,
+          )
+        }),
+      ])
+    } finally {
+      clearTimeout(timeout)
+    }
+  }
+  private async readShoppingItems() {
+    const result = await this.shoppingCall('get_items', {
+      status: 'needs_action',
+    })
+    const items = result.response?.[SHOPPING_ENTITY]?.items
+    if (
+      !Array.isArray(items) ||
+      items.some(
+        (item) =>
+          !item ||
+          typeof item.uid !== 'string' ||
+          typeof item.summary !== 'string' ||
+          (item.description !== undefined &&
+            typeof item.description !== 'string'),
+      )
+    )
+      throw new Error('Home Assistant non ha restituito la lista Bring!.')
+    return items
+  }
+  refreshShopping = async () => {
+    if (this.state.shopping.pending.length) return
+    clearTimeout(this.shoppingTimer)
+    const request = ++this.shoppingRequest
+    const generation = this.generation
+    if (!this.shoppingAvailable()) {
+      this.update({
+        shopping: {
+          ...this.state.shopping,
+          status: 'error',
+          error:
+            'Lista Bring! non disponibile. Controlla todo.casettolina in Home Assistant.',
+        },
+      })
+      return
+    }
+    this.update({
+      shopping: { ...this.state.shopping, status: 'loading', error: '' },
+    })
+    try {
+      const items = await this.readShoppingItems()
+      if (generation === this.generation && request === this.shoppingRequest)
+        this.update({
+          shopping: { items, status: 'ready', pending: [], error: '' },
+        })
+    } catch (error) {
+      if (generation === this.generation && request === this.shoppingRequest)
+        this.update({
+          shopping: {
+            ...this.state.shopping,
+            status: 'error',
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Non riesco a leggere la lista Bring!.',
+          },
+        })
+    } finally {
+      if (
+        generation === this.generation &&
+        request === this.shoppingRequest &&
+        this.state.status === 'connected'
+      )
+        this.shoppingTimer = setTimeout(
+          () => void this.refreshShopping(),
+          30000,
+        )
+    }
+  }
+  completeShoppingItem = async (uid: string) => {
+    if (
+      !this.shoppingAvailable() ||
+      this.state.shopping.pending.length ||
+      !this.state.shopping.items.some((item) => item.uid === uid) ||
+      !(
+        Number(
+          this.state.entities[SHOPPING_ENTITY].attributes.supported_features,
+        ) & 2
+      )
+    )
+      return
+    const generation = this.generation
+    const request = ++this.shoppingRequest
+    clearTimeout(this.shoppingTimer)
+    this.update({
+      shopping: { ...this.state.shopping, pending: [uid], error: '' },
+    })
+    try {
+      await this.shoppingCall('update_item', { item: uid, status: 'completed' })
+      if (generation !== this.generation || request !== this.shoppingRequest)
+        return
+      const items = await this.readShoppingItems()
+      if (generation !== this.generation || request !== this.shoppingRequest)
+        return
+      if (items.some((item) => item.uid === uid))
+        throw new Error(
+          'Acquisto non ancora confermato da Bring!. Aggiorna la lista prima di riprovare.',
+        )
+      this.update({
+        shopping: { items, status: 'ready', pending: [], error: '' },
+      })
+    } catch (error) {
+      if (generation === this.generation && request === this.shoppingRequest)
+        this.update({
+          shopping: {
+            ...this.state.shopping,
+            status: 'error',
+            error:
+              error instanceof Error
+                ? error.message
+                : 'Acquisto non riuscito. Riprova.',
+          },
+        })
+    } finally {
+      if (generation === this.generation && request === this.shoppingRequest) {
+        this.update({ shopping: { ...this.state.shopping, pending: [] } })
+        if (this.state.status === 'connected')
+          this.shoppingTimer = setTimeout(
+            () => void this.refreshShopping(),
+            30000,
+          )
       }
     }
   }
