@@ -1,0 +1,4 @@
+Source: 5f8c70bada2ff8739b0b3640420a2036d1d77b4e
+PR: https://github.com/CoppaR7/HomeHub/pull/1
+SHA256: 02bfb74034fda58b9a36710e600ac40c7a176bdc37364a749cc0c3896b68251f
+Artifact: HomeHub-QNAP-aggiornamento-Bring.zip
