@@ -1,0 +1,4 @@
+Source: f3eefc9e0b9b761b19738ba6c25390436c02c3fa
+PR: https://github.com/CoppaR7/HomeHub/pull/1
+SHA256: cefb22979a3ce71fdb8e65564a34343b6517f308d9a487746c2871e6d8a50d23
+Artifact: HomeHub-QNAP-aggiornamento-Calendario.zip
