@@ -355,3 +355,44 @@ describe('lista Bring! tramite la connessione esistente', () => {
     expect(client.getSnapshot().shopping.items).toContainEqual(milk)
   })
 })
+
+it('legge il calendario con la sessione esistente, senza autorizzare scritture sugli eventi', async () => {
+  await client.connect('http://ha.local:8123')
+  receive({
+    ...initial(),
+    'calendar.famiglia': entity('calendar.famiglia', 'off'),
+  })
+  const event = {
+    summary: 'Dentista',
+    start: '2026-10-26T09:00:00+01:00',
+    end: '2026-10-26T10:00:00+01:00',
+  }
+  connection.sendMessagePromise = vi
+    .fn()
+    .mockResolvedValue({
+      response: { 'calendar.famiglia': { events: [event] } },
+    })
+  expect(
+    await client.getCalendarEvents(
+      'calendar.famiglia',
+      '2026-10-25T23:00:00Z',
+      '2026-11-01T23:00:00Z',
+    ),
+  ).toEqual([event])
+  expect(connection.sendMessagePromise).toHaveBeenCalledWith({
+    type: 'call_service',
+    domain: 'calendar',
+    service: 'get_events',
+    target: { entity_id: 'calendar.famiglia' },
+    service_data: {
+      start_date_time: '2026-10-25T23:00:00Z',
+      end_date_time: '2026-11-01T23:00:00Z',
+    },
+    return_response: true,
+  })
+  listeners.disconnected()
+  await expect(
+    client.getCalendarEvents('calendar.famiglia', '', ''),
+  ).rejects.toThrow('non disponibile')
+  expect(getAuth).toHaveBeenCalledTimes(1)
+})

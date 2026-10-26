@@ -1050,3 +1050,405 @@ footer > span {
 .shopping-list strong {
   font-weight: 500;
 }
+
+/* The first screen is reserved for shopping, the week and reminders. */
+.dashboard {
+  display: block;
+}
+.overview {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.55fr);
+  gap: 16px;
+}
+.overview .shopping-card {
+  grid-column: 1;
+  grid-row: 1 / 3;
+}
+.overview .weather-card {
+  grid-column: 2;
+  grid-row: 1;
+}
+.overview .notices-card {
+  grid-column: 2;
+  grid-row: 2;
+}
+.lights-card {
+  margin-top: 24px;
+}
+.weekly-agenda {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  border-top: 1px solid #e3e6de;
+  padding-top: 8px;
+}
+.agenda-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.agenda-heading h3 {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.agenda-heading .icon-button {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+.calendar-choice {
+  margin-left: auto;
+  min-width: 0;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.calendar-picker {
+  padding: 8px 0;
+  font-size: 12px;
+}
+.calendar-picker label {
+  display: block;
+  margin-bottom: 5px;
+}
+.calendar-picker select {
+  max-width: 100%;
+  width: 100%;
+  padding: 7px;
+  border: 1px solid #dfe3da;
+  border-radius: 8px;
+  background: #fffefa;
+  color: inherit;
+  font: inherit;
+}
+.calendar-picker p,
+.agenda-message {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 6px 0;
+}
+.agenda-days {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  scrollbar-width: thin;
+}
+.agenda-day {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid #eceee7;
+  font-size: 13px;
+}
+.agenda-day > time {
+  width: 64px;
+  flex-shrink: 0;
+  text-transform: capitalize;
+  font-weight: 600;
+}
+.agenda-day ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  min-width: 0;
+}
+.agenda-day li {
+  display: flex;
+  gap: 10px;
+  overflow-wrap: anywhere;
+}
+.agenda-day li + li {
+  margin-top: 6px;
+}
+.event-time {
+  min-width: 47px;
+  flex-shrink: 0;
+  color: #62766c;
+  font-size: 11px;
+}
+.agenda-day small {
+  display: block;
+  color: #78827c;
+  margin-top: 3px;
+}
+.no-events {
+  color: #8b958a;
+  font-size: 11px;
+}
+@media (min-width: 761px) {
+  .topbar {
+    height: 60px;
+  }
+  .welcome {
+    height: 76px;
+    padding: 10px 0;
+  }
+  .welcome .eyebrow,
+  .welcome-subtitle {
+    display: none;
+  }
+  .welcome h1 {
+    margin: 0;
+    font-size: 27px;
+  }
+  .clock time {
+    font-size: 34px;
+  }
+  .clock p {
+    margin-top: 0;
+  }
+  .overview {
+    height: calc(100svh - 152px);
+    min-height: 350px;
+    grid-template-rows: minmax(0, 1.7fr) minmax(0, 1fr);
+  }
+  .overview > .card {
+    min-height: 0;
+    padding: 14px 18px 0;
+    overflow: auto;
+  }
+  .overview .card-heading {
+    flex-shrink: 0;
+  }
+  .overview .card-description {
+    margin: 5px 0;
+    font-size: 12px;
+  }
+  .overview h2 {
+    font-size: 19px;
+  }
+  .overview .section-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+  }
+  .overview .card-foot {
+    flex-shrink: 0;
+    padding: 9px 0;
+    margin-top: 6px;
+    font-size: 10px;
+  }
+  .shopping-card,
+  .notices-card {
+    display: flex;
+    flex-direction: column;
+  }
+  .overview .shopping-list {
+    min-height: 0;
+    flex: 1;
+    overflow: auto;
+    scrollbar-width: thin;
+    margin: 8px 0 0;
+  }
+  .overview .shopping-list label {
+    padding: 9px 0;
+  }
+  .overview .shopping-list strong {
+    font-size: 16px;
+  }
+  .overview .shopping-list small {
+    font-size: 12px;
+  }
+  .overview .week {
+    flex: none;
+    gap: 2px;
+    padding: 0 0 6px;
+  }
+  .overview .day {
+    padding: 5px 2px;
+    border-radius: 8px;
+  }
+  .overview .day-date {
+    margin-top: 2px;
+  }
+  .overview .weather-icon {
+    width: 22px;
+    height: 22px;
+    margin: 3px 0;
+  }
+  .overview .temperature {
+    font-size: 12px;
+  }
+  .overview .temperature span {
+    font-size: 10px;
+  }
+  .overview .weather-label {
+    display: none;
+  }
+  .overview .weather-message {
+    padding: 6px 0;
+    min-height: 0;
+    font-size: 11px;
+  }
+  .overview .weather-message .text-button {
+    padding: 3px 8px;
+    display: inline-block;
+  }
+  .overview .notices-card .eyebrow {
+    display: none;
+  }
+  .overview .notice-list {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    scrollbar-width: thin;
+    margin: 8px 0;
+    gap: 6px;
+  }
+  .overview .notice {
+    padding: 8px 10px;
+    gap: 10px;
+  }
+  .overview .notice h3 {
+    font-size: clamp(17px, 1.5vw, 23px);
+  }
+  .overview .notice p {
+    font-size: 10px;
+    margin-top: 3px;
+  }
+  .overview .notice-icon svg {
+    width: 21px;
+    height: 21px;
+  }
+  .overview .empty-notices {
+    padding: 8px;
+  }
+  .overview .empty-notices h3 {
+    font-size: 18px;
+  }
+  .overview .add-notice {
+    padding: 0;
+    flex-shrink: 0;
+    max-height: 55%;
+    overflow: auto;
+  }
+  .overview .add-notice summary {
+    min-height: 36px;
+  }
+}
+@media (max-width: 760px) {
+  .overview {
+    display: flex;
+    flex-direction: column;
+  }
+  .weekly-agenda {
+    min-height: 180px;
+  }
+  .agenda-days {
+    max-height: 320px;
+  }
+  .agenda-heading {
+    flex-wrap: wrap;
+  }
+  .calendar-choice {
+    max-width: 140px;
+  }
+  .shopping-card {
+    padding-bottom: 0;
+  }
+  .weather-card .week {
+    flex: none;
+  }
+}
+@media (min-width: 1500px) and (min-height: 850px) {
+  .app-shell {
+    max-width: 1800px;
+  }
+  .welcome h1 {
+    font-size: 32px;
+  }
+  .overview > .card {
+    padding: 20px 24px 0;
+  }
+  .overview h2 {
+    font-size: 24px;
+  }
+  .overview .card-description {
+    font-size: 15px;
+    margin: 8px 0;
+  }
+  .overview .section-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .overview .shopping-list strong {
+    font-size: 21px;
+  }
+  .overview .shopping-list small {
+    font-size: 15px;
+  }
+  .overview .shopping-list label {
+    padding: 12px 0;
+  }
+  .agenda-heading h3 {
+    font-size: 17px;
+  }
+  .agenda-day {
+    font-size: 18px;
+    padding: 10px 0;
+    gap: 16px;
+  }
+  .agenda-day > time {
+    width: 85px;
+  }
+  .event-time,
+  .no-events {
+    font-size: 14px;
+  }
+  .event-time {
+    min-width: 65px;
+  }
+  .calendar-choice {
+    font-size: 14px;
+    max-width: 250px;
+  }
+  .overview .notice h3 {
+    font-size: 26px;
+  }
+  .overview .notice p {
+    font-size: 13px;
+  }
+  .overview .notice {
+    padding: 10px 14px;
+  }
+  .overview .day-label {
+    font-size: 13px;
+  }
+  .overview .temperature {
+    font-size: 15px;
+  }
+  .overview .weather-icon {
+    width: 25px;
+    height: 25px;
+  }
+}
+@media (min-width: 1500px) and (min-height: 850px) {
+  .agenda-day {
+    font-size: 17px;
+    padding: 6px 0;
+  }
+  .overview .notice-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+  }
+  .overview .notice {
+    padding: 8px 10px;
+  }
+  .overview .notice h3 {
+    font-size: 21px;
+  }
+  .overview .notice p {
+    font-size: 11px;
+  }
+  .overview .empty-notices,
+  .overview .notice-list > .connection-error {
+    grid-column: 1 / -1;
+  }
+}

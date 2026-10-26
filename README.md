@@ -11,6 +11,14 @@ Dashboard in italiano per il tablet all’ingresso: luci, meteo settimanale e pr
 - **Senza collegamento domestico:** luci di esempio e promemoria salvati soltanto nel browser. La casella per provare le frasi è una simulazione esplicita.
 - **Con Home Assistant:** accesso OAuth nella sua pagina di login; nomi e stati delle luci ricevuti dal server; comandi di accensione/spegnimento con conferma; quattro promemoria condivisi. “Fatto” spegne il promemoria sul server. Nessuna password o chiave è inclusa nel codice. La sessione è conservata nella scheda tramite `sessionStorage` e rimossa con “Scollega”. Una disconnessione sospende i comandi e segnala che gli stati non sono aggiornati.
 
+## Schermata 16:9 e calendario settimanale
+
+La schermata principale ospita spesa, settimana e promemoria senza scorrere la pagina sul tablet 1920×1080. La spesa è a sinistra; settimana e promemoria sono a destra; le luci rimangono sotto, raggiungibili scorrendo. Liste lunghe scorrono dentro il rispettivo riquadro. Su telefono l’ordine è spesa, settimana, promemoria, luci.
+
+**La settimana** unisce il meteo compatto agli impegni di oggi e dei successivi sei giorni. Collega prima Google Calendar in Home Assistant, poi scegli la sua entità dal menu **Calendario Home Assistant** dentro il riquadro. Il link Google di condivisione non è una sorgente pubblica di eventi: non servono pubblicazione del calendario o credenziali Google in HomeHub. La [guida QNAP](integrations/home-assistant/AGGIORNAMENTO.md) descrive il collegamento.
+
+La lettura usa `calendar.get_events` sulla sessione Home Assistant esistente; aggiornamento ogni minuto, agli aggiornamenti dell’entità e al cambio del giorno, con un comando manuale. Gli orari usano `Europe/Rome`, anche al cambio dell’ora legale. Gli eventi di tutta la giornata e su più giorni vengono mostrati nei rispettivi giorni. Non vengono modificati eventi sul server; errori e disconnessioni non appaiono come calendario vuoto.
+
 ## Lista Bring! e aggiornamento QNAP
 
 Il widget **La spesa Bring!** usa la sessione Home Assistant esistente e l’entità `todo.casettolina`. Mostra gli articoli da acquistare, con le descrizioni disponibili; una spunta aggiorna l’articolo su Bring! tramite `todo.update_item` (`completed`). HomeHub rilegge la lista prima di togliere l’articolo. Non sono richieste credenziali Bring! aggiuntive. La lista si aggiorna ogni 30 secondi, alle variazioni dell’entità e con il pulsante di aggiornamento. Errori e disconnessioni sospendono le spunte senza inventare acquisti o liste vuote.
@@ -71,7 +79,7 @@ npm run test:watch
 npm run format
 ```
 
-La suite comprende 36 test per meteo, cambio del giorno, promemoria, persistenza, accesso Home Assistant, rifiuto di callback estranei, conferma dei comandi e gestione degli errori. Le prove browser comprendono nove casi senza backend, tre casi Bring! con WebSocket Home Assistant simulato e tre casi opzionali con una vera istanza Home Assistant dedicata. Questi ultimi vengono saltati se `HOMEHUB_HA_TEST_CREDENTIALS` non è impostato al percorso di un file privato di test. Per il collaudo sono state usate luci della piattaforma demo di Home Assistant e modifiche dei promemoria sul server: non sono test di lampadine fisiche o comandi Echo.
+La suite comprende 45 test per meteo, cambio del giorno, promemoria, persistenza, accesso Home Assistant, rifiuto di callback estranei, conferma dei comandi e gestione degli errori. Le prove browser comprendono nove casi senza backend, tre casi Bring!, calendario e layout con WebSocket Home Assistant simulato e tre casi opzionali con una vera istanza Home Assistant dedicata. Questi ultimi vengono saltati se `HOMEHUB_HA_TEST_CREDENTIALS` non è impostato al percorso di un file privato di test. Per il collaudo sono state usate luci della piattaforma demo di Home Assistant e modifiche dei promemoria sul server: non sono test di lampadine fisiche o comandi Echo.
 
 Playwright usa `/usr/bin/chromium` quando disponibile. È possibile indicare un altro browser con `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Nel cloud non occorre scaricare un browser aggiuntivo. Le prove sul formato tablet non equivalgono a una prova su un dispositivo Android fisico.
 

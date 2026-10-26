@@ -10,6 +10,7 @@ import {
   type HassEntities,
 } from 'home-assistant-js-websocket'
 import type { Waste } from './model'
+import { validateCalendarEvents } from './calendar'
 
 export const REMINDER_ENTITIES: Record<Waste, string> = {
   plastica: 'input_boolean.homehub_plastica',
@@ -341,6 +342,47 @@ export class HomeAssistantClient {
             'Collegamento rimosso dal tablet. Per revocare anche la sessione sul server, usa il profilo di Home Assistant.',
         })
       }
+    }
+  }
+  getCalendarEvents = async (id: string, start: string, end: string) => {
+    const connection = this.connection
+    const generation = this.generation
+    const entity = this.state.entities[id]
+    if (
+      !connection?.connected ||
+      this.state.status !== 'connected' ||
+      !id.startsWith('calendar.') ||
+      !entity ||
+      ['unknown', 'unavailable'].includes(entity.state)
+    )
+      throw new Error(
+        'Calendario non disponibile. Controlla il collegamento a Home Assistant.',
+      )
+    let timeout: ReturnType<typeof setTimeout> | undefined
+    try {
+      const result = await Promise.race([
+        connection.sendMessagePromise<{
+          response?: Record<string, { events?: unknown }>
+        }>({
+          type: 'call_service',
+          domain: 'calendar',
+          service: 'get_events',
+          target: { entity_id: id },
+          service_data: { start_date_time: start, end_date_time: end },
+          return_response: true,
+        }),
+        new Promise<never>((_, reject) => {
+          timeout = setTimeout(
+            () => reject(new Error('Il calendario non ha risposto. Riprova.')),
+            10000,
+          )
+        }),
+      ])
+      if (generation !== this.generation || this.state.status !== 'connected')
+        throw new Error('Collegamento al calendario interrotto.')
+      return validateCalendarEvents(result.response?.[id]?.events)
+    } finally {
+      clearTimeout(timeout)
     }
   }
   private shoppingAvailable() {
