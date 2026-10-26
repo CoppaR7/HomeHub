@@ -205,3 +205,194 @@ describe('collegamento Home Assistant', () => {
     expect(() => normalizeHomeUrl('https://ha.local/api/')).toThrow()
   })
 })
+
+describe('lista Bring! tramite la connessione esistente', () => {
+  const milk = { uid: 'bring-milk', summary: 'Latte', description: '2 litri' }
+  const bread = { uid: 'bring-bread', summary: 'Pane' }
+  const response = (items = [milk, bread]) => ({
+    response: { 'todo.casettolina': { items } },
+  })
+  const shoppingEntities = (state = '2', updated = 'first'): HassEntities => ({
+    ...initial(),
+    'todo.casettolina': {
+      ...entity('todo.casettolina', state),
+      last_updated: updated,
+      attributes: { supported_features: 2 },
+    },
+  })
+  async function openShopping() {
+    connection.sendMessagePromise = vi.fn().mockResolvedValue(response())
+    await client.connect('http://ha.local:8123')
+    receive(shoppingEntities())
+    await vi.waitFor(() =>
+      expect(client.getSnapshot().shopping.status).toBe('ready'),
+    )
+  }
+  it('legge solo gli articoli da acquistare, senza un secondo accesso', async () => {
+    await openShopping()
+    expect(getAuth).toHaveBeenCalledTimes(1)
+    expect(connection.sendMessagePromise).toHaveBeenCalledWith({
+      type: 'call_service',
+      domain: 'todo',
+      service: 'get_items',
+      target: { entity_id: 'todo.casettolina' },
+      service_data: { status: 'needs_action' },
+      return_response: true,
+    })
+    expect(client.getSnapshot().shopping.items).toEqual([milk, bread])
+  })
+  it('completa per UID e rimuove solo dopo la rilettura confermata dal server', async () => {
+    await openShopping()
+    let confirm!: (value: ReturnType<typeof response>) => void
+    vi.mocked(connection.sendMessagePromise)
+      .mockResolvedValueOnce({})
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            confirm = resolve
+          }),
+      )
+    const command = client.completeShoppingItem(milk.uid)
+    await vi.waitFor(() => expect(confirm).toBeDefined())
+    expect(client.getSnapshot().shopping.items).toContainEqual(milk)
+    expect(client.getSnapshot().shopping.pending).toEqual([milk.uid])
+    expect(connection.sendMessagePromise).toHaveBeenCalledWith({
+      type: 'call_service',
+      domain: 'todo',
+      service: 'update_item',
+      target: { entity_id: 'todo.casettolina' },
+      service_data: { item: milk.uid, status: 'completed' },
+    })
+    confirm(response([bread]))
+    await command
+    expect(client.getSnapshot().shopping.items).toEqual([bread])
+    expect(client.getSnapshot().shopping.pending).toEqual([])
+  })
+  it('conserva gli articoli se il comando fallisce o manca la conferma', async () => {
+    await openShopping()
+    vi.mocked(connection.sendMessagePromise).mockRejectedValueOnce(
+      new Error('Accesso negato'),
+    )
+    await client.completeShoppingItem(milk.uid)
+    expect(client.getSnapshot().shopping.error).toBe('Accesso negato')
+    expect(client.getSnapshot().shopping.items).toContainEqual(milk)
+    await client.completeShoppingItem(milk.uid)
+    expect(client.getSnapshot().shopping.error).toContain(
+      'non ancora confermato',
+    )
+    expect(client.getSnapshot().shopping.items).toContainEqual(milk)
+  })
+  it('riceve cambiamenti esterni anche a parità di conteggio e aggiorna periodicamente', async () => {
+    vi.useFakeTimers()
+    await openShopping()
+    vi.mocked(connection.sendMessagePromise).mockResolvedValue(
+      response([bread]),
+    )
+    receive(shoppingEntities('2', 'renamed'))
+    await vi.advanceTimersByTimeAsync(1)
+    expect(client.getSnapshot().shopping.items).toEqual([bread])
+    vi.mocked(connection.sendMessagePromise).mockResolvedValue(response([]))
+    await vi.advanceTimersByTimeAsync(30000)
+    expect(client.getSnapshot().shopping.items).toEqual([])
+  })
+  it('distingue lista mancante, non disponibile e risposta malformata dalla lista vuota', async () => {
+    await client.connect('http://ha.local:8123')
+    receive(initial())
+    expect(client.getSnapshot().shopping.status).toBe('error')
+    receive(shoppingEntities('unavailable'))
+    expect(client.getSnapshot().shopping.status).toBe('error')
+    connection.sendMessagePromise = vi.fn().mockResolvedValue({})
+    receive(shoppingEntities())
+    await vi.waitFor(() =>
+      expect(client.getSnapshot().shopping.error).toContain(
+        'non ha restituito',
+      ),
+    )
+    expect(client.getSnapshot().shopping.status).toBe('error')
+  })
+  it('non invia acquisti offline, per UID estranei o su liste senza aggiornamento', async () => {
+    await openShopping()
+    vi.mocked(connection.sendMessagePromise).mockClear()
+    await client.completeShoppingItem('foreign')
+    const entities = shoppingEntities()
+    entities['todo.casettolina'].attributes.supported_features = 0
+    receive(entities)
+    await client.completeShoppingItem(milk.uid)
+    listeners.disconnected()
+    await client.completeShoppingItem(milk.uid)
+    expect(connection.sendMessagePromise).not.toHaveBeenCalled()
+  })
+  it('ignora risposte tardive dopo Scollega e arresta il polling', async () => {
+    vi.useFakeTimers()
+    await openShopping()
+    let resolve!: (value: ReturnType<typeof response>) => void
+    vi.mocked(connection.sendMessagePromise).mockImplementationOnce(
+      () =>
+        new Promise((done) => {
+          resolve = done
+        }),
+    )
+    const refresh = client.refreshShopping()
+    await client.disconnect()
+    resolve(response())
+    await refresh
+    await vi.advanceTimersByTimeAsync(60000)
+    expect(client.getSnapshot().shopping.items).toEqual([])
+    expect(client.getSnapshot().shopping.status).toBe('idle')
+    expect(connection.sendMessagePromise).toHaveBeenCalledTimes(2)
+  })
+  it('sblocca la lista quando il server non risponde', async () => {
+    vi.useFakeTimers()
+    await openShopping()
+    vi.mocked(connection.sendMessagePromise).mockImplementationOnce(
+      () => new Promise(() => {}),
+    )
+    const command = client.completeShoppingItem(milk.uid)
+    await vi.advanceTimersByTimeAsync(10001)
+    await command
+    expect(client.getSnapshot().shopping.error).toContain('non ha risposto')
+    expect(client.getSnapshot().shopping.pending).toEqual([])
+    expect(client.getSnapshot().shopping.items).toContainEqual(milk)
+  })
+})
+
+it('legge il calendario con la sessione esistente, senza autorizzare scritture sugli eventi', async () => {
+  await client.connect('http://ha.local:8123')
+  receive({
+    ...initial(),
+    'calendar.famiglia': entity('calendar.famiglia', 'off'),
+  })
+  const event = {
+    summary: 'Dentista',
+    start: '2026-10-26T09:00:00+01:00',
+    end: '2026-10-26T10:00:00+01:00',
+  }
+  connection.sendMessagePromise = vi
+    .fn()
+    .mockResolvedValue({
+      response: { 'calendar.famiglia': { events: [event] } },
+    })
+  expect(
+    await client.getCalendarEvents(
+      'calendar.famiglia',
+      '2026-10-25T23:00:00Z',
+      '2026-11-01T23:00:00Z',
+    ),
+  ).toEqual([event])
+  expect(connection.sendMessagePromise).toHaveBeenCalledWith({
+    type: 'call_service',
+    domain: 'calendar',
+    service: 'get_events',
+    target: { entity_id: 'calendar.famiglia' },
+    service_data: {
+      start_date_time: '2026-10-25T23:00:00Z',
+      end_date_time: '2026-11-01T23:00:00Z',
+    },
+    return_response: true,
+  })
+  listeners.disconnected()
+  await expect(
+    client.getCalendarEvents('calendar.famiglia', '', ''),
+  ).rejects.toThrow('non disponibile')
+  expect(getAuth).toHaveBeenCalledTimes(1)
+})

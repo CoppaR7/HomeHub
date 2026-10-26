@@ -37,6 +37,9 @@ import {
 } from './model'
 import { loadForecast, searchPlaces } from './weather'
 import HomeConnection from './HomeConnection'
+import ShoppingList from './ShoppingList'
+import WeeklyAgenda from './WeeklyAgenda'
+import { weekStart, addDays } from './calendar'
 import { useHomeAssistant } from './useHomeAssistant'
 import { homeAssistant, REMINDER_ENTITIES } from './home-assistant'
 import './App.css'
@@ -176,7 +179,11 @@ export default function App() {
   }, [place, refresh, today])
   const weatherDays =
     weatherState === 'ready' || weatherState === 'demo'
-      ? days.filter((day) => day.date >= today)
+      ? days.filter(
+          (day) =>
+            day.date >= weekStart(today) &&
+            day.date < addDays(weekStart(today), 7),
+        )
       : []
   const rain = getRainAlert(weatherDays, now)
   const visibleLights = home.enabled
@@ -299,7 +306,7 @@ export default function App() {
             </p>
             <h1>Ogni cosa al suo posto.</h1>
             <p className="welcome-subtitle">
-              Le luci, il tempo e le cose da ricordare. Tutto qui.
+              La spesa, gli impegni e le cose da ricordare. Tutto qui.
             </p>
           </div>
           <div className="clock">
@@ -404,6 +411,249 @@ export default function App() {
           </section>
         )}
         <div className="dashboard">
+          <div className="overview">
+            <ShoppingList />
+            <section
+              className="card weather-card"
+              aria-labelledby="weather-heading"
+            >
+              <div className="card-heading">
+                <div className="heading-with-icon">
+                  <span className="section-icon blue">
+                    <CloudSun size={22} />
+                  </span>
+                  <h2 id="weather-heading">La settimana</h2>
+                </div>
+                <button
+                  className="location-button"
+                  onClick={() => setSettings(true)}
+                >
+                  <MapPin size={14} />
+                  {place.name}
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+              <p className="card-description">
+                Un’occhiata fuori, prima di uscire.
+                {weatherState === 'demo' && (
+                  <span className="demo-weather"> Dati dimostrativi</span>
+                )}
+              </p>
+              {weatherState === 'loading' && (
+                <p role="status" className="weather-message">
+                  Caricamento delle previsioni…
+                </p>
+              )}
+              {weatherState === 'error' && (
+                <div className="weather-message" role="alert">
+                  <p>{weatherError}</p>
+                  <button className="text-button" onClick={retryWeather}>
+                    Riprova
+                  </button>
+                  <button
+                    className="text-button"
+                    onClick={() => {
+                      setDays(DEMO_DAYS)
+                      setWeatherState('demo')
+                    }}
+                  >
+                    Mostra esempio
+                  </button>
+                </div>
+              )}
+              <WeeklyAgenda
+                today={today}
+                renderWeather={(date) => {
+                  const day = weatherDays.find((item) => item.date === date)
+                  return day ? (
+                    <div className="day">
+                      <WeatherIcon code={day.code} />
+                      <span className="sr-only">{day.label}</span>
+                      <div className="temperature">
+                        {Math.round(day.max)}°{' '}
+                        <span>{Math.round(day.min)}°</span>
+                      </div>
+                      <span className="weather-label">{day.label}</span>
+                      {date < today && (
+                        <span className="past-weather">Dati passati</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="day-weather-missing">
+                      Meteo non disponibile
+                    </div>
+                  )
+                }}
+              />
+              <div className="card-foot">
+                <span>
+                  {weatherState === 'ready'
+                    ? `Aggiornato alle ${updated} · ogni ora`
+                    : weatherState === 'demo'
+                      ? 'Esempio · non sono previsioni reali'
+                      : 'È necessaria una connessione Internet'}
+                </span>
+                {weatherState === 'ready' ? (
+                  <a
+                    href="https://open-meteo.com/"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open-Meteo <ArrowUpRight size={12} />
+                  </a>
+                ) : (
+                  <Sun size={15} />
+                )}
+              </div>
+            </section>
+            <section
+              className="card notices-card"
+              aria-labelledby="notices-heading"
+            >
+              <div className="card-heading">
+                <div className="heading-with-icon">
+                  <span className="section-icon peach">
+                    <Bell size={22} />
+                  </span>
+                  <div>
+                    <p className="eyebrow">UN PICCOLO PROMEMORIA</p>
+                    <h2 id="notices-heading">Prima di uscire…</h2>
+                  </div>
+                </div>
+                <span className="count-badge">
+                  {noticeCount} {noticeCount === 1 ? 'avviso' : 'avvisi'}
+                </span>
+              </div>
+              <div className="notice-list">
+                {rain && (
+                  <Alert
+                    icon={<Umbrella size={29} />}
+                    title="prendi l'ombrello!"
+                    description={`${weatherState === 'demo' ? 'Esempio meteo · ' : ''}Pioggia prevista ${rain}.`}
+                  />
+                )}
+                {visibleWaste.map((item) => (
+                  <Alert
+                    key={item}
+                    icon={<Trash2 size={27} />}
+                    title={WASTE[item].message}
+                    description={
+                      home.enabled && home.status !== 'connected'
+                        ? 'Ultimo stato ricevuto: collegamento interrotto.'
+                        : 'Da portare via quando esci.'
+                    }
+                    disabled={
+                      home.enabled &&
+                      (home.status !== 'connected' ||
+                        home.pending.includes(REMINDER_ENTITIES[item]))
+                    }
+                    onDismiss={() =>
+                      home.enabled
+                        ? void homeAssistant.setEntity(
+                            REMINDER_ENTITIES[item],
+                            false,
+                          )
+                        : setWaste((previous) =>
+                            previous.filter((value) => value !== item),
+                          )
+                    }
+                  />
+                ))}
+                {noticeCount === 0 &&
+                  !(
+                    home.enabled &&
+                    (home.status !== 'connected' ||
+                      Object.values(REMINDER_ENTITIES).some(
+                        (id) =>
+                          !['on', 'off'].includes(home.entities[id]?.state),
+                      ))
+                  ) && (
+                    <div className="empty-notices">
+                      <Check size={30} />
+                      <div>
+                        <h3>
+                          {weatherState === 'ready' || weatherState === 'demo'
+                            ? 'Tutto a posto!'
+                            : 'Nessun promemoria manuale.'}
+                        </h3>
+                        <p>
+                          {weatherState === 'ready' || weatherState === 'demo'
+                            ? 'Nessun promemoria da ricordare.'
+                            : 'Gli avvisi meteo compariranno quando saranno disponibili le previsioni.'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                {noticeCount === 0 &&
+                  home.enabled &&
+                  (home.status !== 'connected' ||
+                    Object.values(REMINDER_ENTITIES).some(
+                      (id) => !['on', 'off'].includes(home.entities[id]?.state),
+                    )) && (
+                    <p className="connection-error">
+                      I promemoria di casa non sono ancora disponibili.
+                      Controlla il collegamento e i quattro interruttori in Home
+                      Assistant.
+                    </p>
+                  )}
+              </div>
+              <details className="add-notice">
+                <summary>
+                  <Plus size={17} />
+                  Aggiungi un promemoria
+                  <span>
+                    {home.enabled
+                      ? 'Promemoria condivisi'
+                      : 'Alexa da collegare'}
+                  </span>
+                </summary>
+                <p>
+                  {home.enabled
+                    ? 'Puoi aggiungere un avviso qui oppure attivarlo tramite Alexa, dopo avere configurato il collegamento vocale in Home Assistant.'
+                    : 'Puoi aggiungere un avviso a mano, oppure provare una frase. La prova non ascolta la voce e non è collegata ad Alexa.'}
+                </p>
+                <div className="waste-buttons">
+                  {(Object.keys(WASTE) as Waste[]).map((item) => (
+                    <button
+                      key={item}
+                      onClick={() => addWaste(item)}
+                      disabled={
+                        visibleWaste.includes(item) ||
+                        (home.enabled &&
+                          (home.status !== 'connected' ||
+                            home.pending.includes(REMINDER_ENTITIES[item]) ||
+                            !['on', 'off'].includes(
+                              home.entities[REMINDER_ENTITIES[item]]?.state,
+                            )))
+                      }
+                    >
+                      <Plus size={15} />
+                      {WASTE[item].label}
+                    </button>
+                  ))}
+                </div>
+                {!home.enabled && (
+                  <form className="inline-form" onSubmit={simulateVoice}>
+                    <label className="sr-only" htmlFor="voice">
+                      Prova una frase Alexa
+                    </label>
+                    <input
+                      id="voice"
+                      value={command}
+                      onChange={(event) => setCommand(event.target.value)}
+                      placeholder="Alexa, plastica piena"
+                      maxLength={100}
+                      required
+                    />
+                    <button className="primary-button">Prova frase</button>
+                  </form>
+                )}
+                <p className="form-status" role="status">
+                  {commandStatus}
+                </p>
+              </details>
+            </section>
+          </div>
           <section
             className="card lights-card"
             aria-labelledby="lights-heading"
@@ -507,244 +757,6 @@ export default function App() {
                 {home.error}
               </p>
             )}
-          </section>
-          <section
-            className="card weather-card"
-            aria-labelledby="weather-heading"
-          >
-            <div className="card-heading">
-              <div className="heading-with-icon">
-                <span className="section-icon blue">
-                  <CloudSun size={22} />
-                </span>
-                <h2 id="weather-heading">La settimana</h2>
-              </div>
-              <button
-                className="location-button"
-                onClick={() => setSettings(true)}
-              >
-                <MapPin size={14} />
-                {place.name}
-                <ChevronRight size={14} />
-              </button>
-            </div>
-            <p className="card-description">
-              Un’occhiata fuori, prima di uscire.
-              {weatherState === 'demo' && (
-                <span className="demo-weather"> Dati dimostrativi</span>
-              )}
-            </p>
-            {weatherState === 'loading' && (
-              <p role="status" className="weather-message">
-                Caricamento delle previsioni…
-              </p>
-            )}
-            {weatherState === 'error' && (
-              <div className="weather-message" role="alert">
-                <p>{weatherError}</p>
-                <button className="text-button" onClick={retryWeather}>
-                  Riprova
-                </button>
-                <button
-                  className="text-button"
-                  onClick={() => {
-                    setDays(DEMO_DAYS)
-                    setWeatherState('demo')
-                  }}
-                >
-                  Mostra esempio
-                </button>
-              </div>
-            )}
-            <div className="week">
-              {weatherDays.map((day) => (
-                <div
-                  className={`day ${day.date === today ? 'today' : ''}`}
-                  key={day.date}
-                >
-                  <span className="day-label">
-                    {day.date === today
-                      ? 'Oggi'
-                      : new Date(`${day.date}T12:00:00`).toLocaleDateString(
-                          'it-IT',
-                          { weekday: 'short' },
-                        )}
-                  </span>
-                  <span className="day-date">
-                    {new Date(`${day.date}T12:00:00`).getDate()}
-                  </span>
-                  <WeatherIcon code={day.code} />
-                  <span className="sr-only">{day.label}</span>
-                  <div className="temperature">
-                    {Math.round(day.max)}° <span>{Math.round(day.min)}°</span>
-                  </div>
-                  <span className="weather-label">{day.label}</span>
-                </div>
-              ))}
-            </div>
-            <div className="card-foot">
-              <span>
-                {weatherState === 'ready'
-                  ? `Aggiornato alle ${updated} · ogni ora`
-                  : weatherState === 'demo'
-                    ? 'Esempio · non sono previsioni reali'
-                    : 'È necessaria una connessione Internet'}
-              </span>
-              {weatherState === 'ready' ? (
-                <a
-                  href="https://open-meteo.com/"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open-Meteo <ArrowUpRight size={12} />
-                </a>
-              ) : (
-                <Sun size={15} />
-              )}
-            </div>
-          </section>
-          <section
-            className="card notices-card"
-            aria-labelledby="notices-heading"
-          >
-            <div className="card-heading">
-              <div className="heading-with-icon">
-                <span className="section-icon peach">
-                  <Bell size={22} />
-                </span>
-                <div>
-                  <p className="eyebrow">UN PICCOLO PROMEMORIA</p>
-                  <h2 id="notices-heading">Prima di uscire…</h2>
-                </div>
-              </div>
-              <span className="count-badge">
-                {noticeCount} {noticeCount === 1 ? 'avviso' : 'avvisi'}
-              </span>
-            </div>
-            <div className="notice-list">
-              {rain && (
-                <Alert
-                  icon={<Umbrella size={29} />}
-                  title="prendi l'ombrello!"
-                  description={`${weatherState === 'demo' ? 'Esempio meteo · ' : ''}Pioggia prevista ${rain}.`}
-                />
-              )}
-              {visibleWaste.map((item) => (
-                <Alert
-                  key={item}
-                  icon={<Trash2 size={27} />}
-                  title={WASTE[item].message}
-                  description={
-                    home.enabled && home.status !== 'connected'
-                      ? 'Ultimo stato ricevuto: collegamento interrotto.'
-                      : 'Da portare via quando esci.'
-                  }
-                  disabled={
-                    home.enabled &&
-                    (home.status !== 'connected' ||
-                      home.pending.includes(REMINDER_ENTITIES[item]))
-                  }
-                  onDismiss={() =>
-                    home.enabled
-                      ? void homeAssistant.setEntity(
-                          REMINDER_ENTITIES[item],
-                          false,
-                        )
-                      : setWaste((previous) =>
-                          previous.filter((value) => value !== item),
-                        )
-                  }
-                />
-              ))}
-              {noticeCount === 0 &&
-                !(
-                  home.enabled &&
-                  (home.status !== 'connected' ||
-                    Object.values(REMINDER_ENTITIES).some(
-                      (id) => !['on', 'off'].includes(home.entities[id]?.state),
-                    ))
-                ) && (
-                  <div className="empty-notices">
-                    <Check size={30} />
-                    <div>
-                      <h3>
-                        {weatherState === 'ready' || weatherState === 'demo'
-                          ? 'Tutto a posto!'
-                          : 'Nessun promemoria manuale.'}
-                      </h3>
-                      <p>
-                        {weatherState === 'ready' || weatherState === 'demo'
-                          ? 'Nessun promemoria da ricordare.'
-                          : 'Gli avvisi meteo compariranno quando saranno disponibili le previsioni.'}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              {noticeCount === 0 &&
-                home.enabled &&
-                (home.status !== 'connected' ||
-                  Object.values(REMINDER_ENTITIES).some(
-                    (id) => !['on', 'off'].includes(home.entities[id]?.state),
-                  )) && (
-                  <p className="connection-error">
-                    I promemoria di casa non sono ancora disponibili. Controlla
-                    il collegamento e i quattro interruttori in Home Assistant.
-                  </p>
-                )}
-            </div>
-            <details className="add-notice">
-              <summary>
-                <Plus size={17} />
-                Aggiungi un promemoria
-                <span>
-                  {home.enabled ? 'Promemoria condivisi' : 'Alexa da collegare'}
-                </span>
-              </summary>
-              <p>
-                {home.enabled
-                  ? 'Puoi aggiungere un avviso qui oppure attivarlo tramite Alexa, dopo avere configurato il collegamento vocale in Home Assistant.'
-                  : 'Puoi aggiungere un avviso a mano, oppure provare una frase. La prova non ascolta la voce e non è collegata ad Alexa.'}
-              </p>
-              <div className="waste-buttons">
-                {(Object.keys(WASTE) as Waste[]).map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => addWaste(item)}
-                    disabled={
-                      visibleWaste.includes(item) ||
-                      (home.enabled &&
-                        (home.status !== 'connected' ||
-                          home.pending.includes(REMINDER_ENTITIES[item]) ||
-                          !['on', 'off'].includes(
-                            home.entities[REMINDER_ENTITIES[item]]?.state,
-                          )))
-                    }
-                  >
-                    <Plus size={15} />
-                    {WASTE[item].label}
-                  </button>
-                ))}
-              </div>
-              {!home.enabled && (
-                <form className="inline-form" onSubmit={simulateVoice}>
-                  <label className="sr-only" htmlFor="voice">
-                    Prova una frase Alexa
-                  </label>
-                  <input
-                    id="voice"
-                    value={command}
-                    onChange={(event) => setCommand(event.target.value)}
-                    placeholder="Alexa, plastica piena"
-                    maxLength={100}
-                    required
-                  />
-                  <button className="primary-button">Prova frase</button>
-                </form>
-              )}
-              <p className="form-status" role="status">
-                {commandStatus}
-              </p>
-            </details>
           </section>
         </div>
         <footer>

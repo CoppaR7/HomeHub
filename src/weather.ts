@@ -44,11 +44,16 @@ export async function loadForecast(
   signal?: AbortSignal,
 ): Promise<Day[]> {
   const data = await request(
-    `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7`,
+    `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=7&past_days=6`,
     signal,
   )
   const daily = data.daily
-  if (!daily || !Array.isArray(daily.time) || daily.time.length !== 7)
+  if (
+    !daily ||
+    !Array.isArray(daily.time) ||
+    daily.time.length < 7 ||
+    daily.time.length > 13
+  )
     throw new Error('Previsioni incomplete. Riprova tra poco.')
   return daily.time.map((date: string, index: number) => {
     const code = daily.weather_code?.[index],

@@ -4,6 +4,8 @@ Questa soluzione usa **Home Assistant Container sul NAS**. Il TS-216G ha un proc
 
 HomeHub viene servito direttamente dal NAS: tablet e NAS comunicano nella rete di casa. Il sito GitHub Pages resta disponibile come anteprima; da una pagina pubblica HTTPS non si può collegare direttamente un Home Assistant locale HTTP. Non è necessario esporre il NAS su Internet per questo percorso e non viene attivato alcun abbonamento.
 
+Per un’installazione esistente usa il pacchetto con i soli file web: [aggiornamento Bring! e ripristino](AGGIORNAMENTO.md). Non sostituire la configurazione del NAS.
+
 ## Installazione di una NUOVA istanza
 
 Il pacchetto `HomeHub-QNAP.zip` contiene già l’app compilata e le configurazioni. **Non sovrascrivere un’installazione Home Assistant esistente** con il file `configuration.yaml` del pacchetto; in quel caso occorre unire soltanto il pacchetto HomeHub alla configurazione corrente.
