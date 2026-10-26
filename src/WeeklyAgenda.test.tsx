@@ -108,7 +108,7 @@ it('aggiorna ogni minuto e al cambio del giorno italiano', async () => {
   })
   expect(homeAssistant.getCalendarEvents).toHaveBeenLastCalledWith(
     'calendar.famiglia',
-    '2026-10-26T23:00:00.000Z',
-    '2026-11-02T23:00:00.000Z',
+    '2026-10-25T23:00:00.000Z',
+    '2026-11-01T23:00:00.000Z',
   )
 })

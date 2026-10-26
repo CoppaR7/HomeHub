@@ -8,15 +8,15 @@ function forecast(code = 61) {
   return {
     daily: {
       time: [
+        '2026-10-19',
+        '2026-10-20',
+        '2026-10-21',
         '2026-10-22',
         '2026-10-23',
         '2026-10-24',
         '2026-10-25',
-        '2026-10-26',
-        '2026-10-27',
-        '2026-10-28',
       ],
-      weather_code: [code, 0, 2, 3, 71, 0, 0],
+      weather_code: [0, 0, 2, code, 71, 0, 0],
       temperature_2m_max: [19, 20, 21, 18, 3, 20, 21],
       temperature_2m_min: [12, 12, 13, 10, 0, 12, 13],
     },
@@ -58,14 +58,16 @@ describe('la schermata HomeHub', () => {
   })
   it('non mostra l’ombrello se piove domani ma oggi è sereno', async () => {
     const data = forecast(0)
-    data.daily.weather_code[1] = 61
+    data.daily.weather_code[4] = 61
     vi.mocked(fetch).mockResolvedValue({
       ok: true,
       json: async () => data,
     } as Response)
     const { container } = render(<App />)
     expect(await screen.findByText('Tutto a posto!')).toBeVisible()
-    expect(container.querySelector('.day:nth-child(2) .rain')).not.toBeNull()
+    expect(
+      container.querySelector('.agenda-day:nth-child(5) .day .rain'),
+    ).not.toBeNull()
     expect(screen.queryByText("prendi l'ombrello!")).not.toBeInTheDocument()
   })
   it('salva lo stato dimostrativo delle luci dopo il cambio e il ricaricamento', async () => {
@@ -199,4 +201,24 @@ describe('i dati del servizio meteo', () => {
       'Previsioni incomplete',
     )
   })
+})
+
+it('accetta la risposta meteo con i sei giorni passati necessari alla settimana lunedì-domenica', async () => {
+  const dates = Array.from({ length: 13 }, (_, i) => `2026-10-${16 + i}`)
+  vi.mocked(fetch).mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      daily: {
+        time: dates,
+        weather_code: Array(13).fill(0),
+        temperature_2m_max: Array(13).fill(20),
+        temperature_2m_min: Array(13).fill(10),
+      },
+    }),
+  } as Response)
+  expect(await loadForecast(CAMERANO)).toHaveLength(13)
+  expect(fetch).toHaveBeenCalledWith(
+    expect.stringContaining('past_days=6'),
+    expect.anything(),
+  )
 })

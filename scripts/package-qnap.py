@@ -11,7 +11,7 @@ parser.add_argument('--update', action='store_true', help='Only dashboard files;
 parser.add_argument('--output', type=Path, help='Output ZIP path')
 args = parser.parse_args()
 repo = Path(__file__).resolve().parent.parent
-output = args.output or Path('/workspace/scratch') / ('HomeHub-QNAP-aggiornamento-Calendario.zip' if args.update else 'HomeHub-QNAP.zip')
+output = args.output or Path('/workspace/scratch') / ('HomeHub-QNAP-aggiornamento-Colonne.zip' if args.update else 'HomeHub-QNAP.zip')
 output = output.resolve()
 output.parent.mkdir(parents=True, exist_ok=True)
 with tempfile.TemporaryDirectory(prefix='homehub-qnap-', dir=output.parent) as temp:

@@ -133,10 +133,14 @@ export function readStored<T>(key: string, fallback: T): T {
     return fallback
   }
 }
+const demoMonday = new Date(`${currentDateKey()}T12:00:00Z`)
+demoMonday.setUTCDate(
+  demoMonday.getUTCDate() - ((demoMonday.getUTCDay() + 6) % 7),
+)
 export const DEMO_DAYS: Day[] = [0, 2, 61, 3, 0, 2, 71].map((code, index) => {
-  const date = new Date()
-  date.setDate(date.getDate() + index)
-  const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  const date = new Date(demoMonday)
+  date.setUTCDate(date.getUTCDate() + index)
+  const iso = date.toISOString().slice(0, 10)
   return {
     date: iso,
     code,

@@ -1452,3 +1452,149 @@ footer > span {
     grid-column: 1 / -1;
   }
 }
+
+/* Each column owns its date, weather and events, so they cannot drift apart. */
+.weekly-agenda {
+  border-top: 0;
+  padding-top: 0;
+}
+.agenda-heading {
+  margin-bottom: 8px;
+}
+.agenda-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0;
+  align-items: stretch;
+}
+.agenda-days .agenda-day {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
+  min-height: 0;
+  padding: 6px;
+  border-bottom: 0;
+  border-right: 1px solid #e3e6de;
+}
+.agenda-day:last-child {
+  border-right: 0;
+}
+.agenda-day.current-day {
+  background: #f1f4ea;
+  border-radius: 10px;
+}
+.agenda-days .agenda-day > time {
+  display: flex;
+  flex-direction: column;
+  width: auto;
+  min-height: 40px;
+  text-align: center;
+}
+.column-weekday {
+  text-transform: capitalize;
+  font-size: 12px;
+}
+.column-date {
+  font-size: 10px;
+  color: #78827c;
+  margin-top: 4px;
+}
+.agenda-days .day {
+  flex: none;
+  min-height: 72px;
+  padding: 3px 0 8px;
+  border-bottom: 1px solid #e3e6de;
+  border-radius: 0;
+}
+.agenda-days .weather-icon {
+  margin: 3px 0;
+  width: 25px;
+  height: 25px;
+}
+.past-weather {
+  font-size: 9px;
+  color: #78827c;
+  margin-top: 2px;
+}
+.day-weather-missing {
+  min-height: 72px;
+  text-align: center;
+  font-size: 10px;
+  color: #78827c;
+  padding: 8px 0;
+  border-bottom: 1px solid #e3e6de;
+}
+.day-events {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-top: 10px;
+  scrollbar-width: thin;
+}
+.agenda-days .agenda-day li {
+  display: block;
+  padding: 7px 5px;
+  border-radius: 6px;
+  background: #f5f5ef;
+  overflow-wrap: anywhere;
+  font-size: 13px;
+}
+.agenda-days .agenda-day li + li {
+  margin-top: 8px;
+}
+.agenda-days .event-time {
+  display: block;
+  min-width: 0;
+  font-size: 11px;
+  margin-bottom: 5px;
+  font-weight: 650;
+}
+.agenda-days .no-events {
+  display: block;
+  font-size: 11px;
+  padding: 8px 2px;
+}
+.agenda-days .agenda-day small {
+  font-size: 10px;
+}
+@media (min-width: 1500px) and (min-height: 850px) {
+  .column-weekday {
+    font-size: 15px;
+  }
+  .column-date {
+    font-size: 12px;
+  }
+  .agenda-days .agenda-day > time {
+    min-height: 48px;
+  }
+  .agenda-days .agenda-day {
+    padding: 10px;
+  }
+  .agenda-days .agenda-day li {
+    font-size: 16px;
+    padding: 10px 8px;
+  }
+  .agenda-days .event-time,
+  .agenda-days .no-events {
+    font-size: 13px;
+  }
+  .agenda-days .agenda-day small {
+    font-size: 12px;
+  }
+}
+@media (max-width: 760px) {
+  .agenda-days {
+    grid-template-columns: repeat(7, minmax(100px, 1fr));
+    flex: none;
+    min-height: 240px;
+  }
+  .weekly-agenda {
+    min-height: 0;
+  }
+}
+/* Keep absolutely positioned screen-reader labels inside the horizontal scroller. */
+.agenda-days {
+  position: relative;
+}

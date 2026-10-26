@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { CalendarDays, RefreshCw } from 'lucide-react'
 import { useHomeAssistant } from './useHomeAssistant'
 import { homeAssistant } from './home-assistant'
 import {
   addDays,
   calendarRange,
+  weekStart,
   eventLabel,
   eventsForDay,
   type CalendarEvent,
@@ -18,7 +19,13 @@ function savedCalendar() {
     return ''
   }
 }
-export default function WeeklyAgenda({ today }: { today: string }) {
+export default function WeeklyAgenda({
+  today,
+  renderWeather,
+}: {
+  today: string
+  renderWeather?: (day: string) => ReactNode
+}) {
   const home = useHomeAssistant()
   const [selected, setSelected] = useState(savedCalendar)
   const [refresh, setRefresh] = useState(0)
@@ -82,7 +89,7 @@ export default function WeeklyAgenda({ today }: { today: string }) {
     <div className="weekly-agenda">
       <div className="agenda-heading">
         <h3>
-          <CalendarDays size={16} /> Impegni · prossimi 7 giorni
+          <CalendarDays size={16} /> Meteo e impegni · lun–dom
         </h3>
         <button
           className="text-button calendar-choice"
@@ -159,28 +166,48 @@ export default function WeeklyAgenda({ today }: { today: string }) {
         <p className="connection-error" role="alert">
           {result.error}
         </p>
-      ) : (
-        <div
-          className="agenda-days"
-          role="region"
-          aria-label="Impegni dei prossimi sette giorni"
-          tabIndex={0}
-        >
-          {Array.from({ length: 7 }, (_, index) => {
-            const day = addDays(today, index)
-            const events = eventsForDay(result.events, day)
-            return (
-              <div className="agenda-day" key={day}>
-                <time dateTime={day}>
-                  {index === 0
-                    ? 'Oggi'
-                    : new Date(`${day}T12:00:00Z`).toLocaleDateString('it-IT', {
-                        timeZone: 'Europe/Rome',
-                        weekday: 'short',
-                        day: 'numeric',
-                      })}
-                </time>
-                {events.length ? (
+      ) : null}
+      <div
+        className="agenda-days"
+        role="region"
+        aria-label="Meteo e impegni da lunedì a domenica"
+        tabIndex={0}
+      >
+        {Array.from({ length: 7 }, (_, index) => {
+          const day = addDays(weekStart(today), index)
+          const ready = selected && available && result.status === 'ready'
+          const events = ready ? eventsForDay(result.events, day) : []
+          return (
+            <div
+              className={`agenda-day ${day === today ? 'current-day' : ''}`}
+              key={day}
+              data-date={day}
+            >
+              <time dateTime={day}>
+                <span className="column-weekday">
+                  {new Date(`${day}T12:00:00Z`).toLocaleDateString('it-IT', {
+                    timeZone: 'Europe/Rome',
+                    weekday: 'long',
+                  })}
+                </span>
+                <span className="column-date">
+                  {new Date(`${day}T12:00:00Z`).toLocaleDateString('it-IT', {
+                    timeZone: 'Europe/Rome',
+                    day: 'numeric',
+                    month: 'short',
+                  })}
+                  {day === today ? ' · Oggi' : ''}
+                </span>
+              </time>
+              {renderWeather?.(day)}
+              <div className="day-events">
+                {!ready ? (
+                  <span className="no-events">
+                    {selected
+                      ? 'Impegni non disponibili'
+                      : 'Calendario da collegare'}
+                  </span>
+                ) : events.length ? (
                   <ul>
                     {events.map((event, i) => (
                       <li key={`${event.start}-${i}`}>
@@ -198,10 +225,10 @@ export default function WeeklyAgenda({ today }: { today: string }) {
                   <span className="no-events">Nessun impegno</span>
                 )}
               </div>
-            )
-          })}
-        </div>
-      )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

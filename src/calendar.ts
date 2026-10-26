@@ -34,8 +34,13 @@ export function romeMidnight(key: string) {
   }
   return new Date(timestamp).toISOString()
 }
+export function weekStart(today: string) {
+  const weekday = new Date(`${today}T12:00:00Z`).getUTCDay()
+  return addDays(today, -((weekday + 6) % 7))
+}
 export function calendarRange(today: string) {
-  return { start: romeMidnight(today), end: romeMidnight(addDays(today, 7)) }
+  const monday = weekStart(today)
+  return { start: romeMidnight(monday), end: romeMidnight(addDays(monday, 7)) }
 }
 function eventTime(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value)

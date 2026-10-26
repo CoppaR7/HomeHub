@@ -156,6 +156,30 @@ test('Bring!: legge e completa un articolo tramite WebSocket Home Assistant simu
   ).toBeVisible()
   await expect(page.getByText('Dentista', { exact: true })).toBeVisible()
   await expect(page.getByText('Vacanza', { exact: true })).toHaveCount(2)
+  const monday = page.locator('.agenda-day[data-date="2026-10-26"]')
+  await expect(monday.locator('.column-weekday')).toHaveText('lunedì')
+  await expect(monday.locator('.temperature')).toContainText('20°')
+  await expect(monday.getByText('Dentista', { exact: true })).toBeVisible()
+  await expect(
+    page
+      .locator('.agenda-day[data-date="2026-10-27"]')
+      .getByText('Vacanza', { exact: true }),
+  ).toBeVisible()
+  await expect(
+    page
+      .locator('.agenda-day[data-date="2026-10-30"]')
+      .getByText('Riunione', { exact: true }),
+  ).toBeVisible()
+  const forecast = await monday.locator('.day').boundingBox()
+  const event = await monday
+    .getByText('Dentista', { exact: true })
+    .boundingBox()
+  expect(event!.y).toBeGreaterThan(forecast!.y + forecast!.height)
+  expect(event!.x).toBeGreaterThanOrEqual(forecast!.x)
+  expect(event!.x + event!.width).toBeLessThanOrEqual(
+    forecast!.x + forecast!.width,
+  )
+
   if (testInfo.project.name !== 'mobile') {
     for (const name of [
       'La spesa Bring!',

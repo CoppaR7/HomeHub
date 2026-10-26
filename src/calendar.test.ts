@@ -4,17 +4,18 @@ import {
   eventLabel,
   eventsForDay,
   validateCalendarEvents,
+  weekStart,
 } from './calendar'
 
 describe('calendario settimanale italiano', () => {
   it('include sette giorni locali anche al cambio dell’ora legale', () => {
     expect(calendarRange('2026-10-23')).toEqual({
-      start: '2026-10-22T22:00:00.000Z',
-      end: '2026-10-29T23:00:00.000Z',
+      start: '2026-10-18T22:00:00.000Z',
+      end: '2026-10-25T23:00:00.000Z',
     })
     expect(calendarRange('2026-03-27')).toEqual({
-      start: '2026-03-26T23:00:00.000Z',
-      end: '2026-04-02T22:00:00.000Z',
+      start: '2026-03-22T23:00:00.000Z',
+      end: '2026-03-29T22:00:00.000Z',
     })
   })
   it('mostra eventi di più giorni senza includere il giorno finale esclusivo', () => {
@@ -47,4 +48,10 @@ describe('calendario settimanale italiano', () => {
     ).toThrow()
     expect(validateCalendarEvents([])).toEqual([])
   })
+})
+
+it('mantiene il lunedì come primo giorno anche a metà settimana, domenica e a cavallo dell’anno', () => {
+  expect(weekStart('2026-10-28')).toBe('2026-10-26')
+  expect(weekStart('2026-11-01')).toBe('2026-10-26')
+  expect(weekStart('2027-01-01')).toBe('2026-12-28')
 })

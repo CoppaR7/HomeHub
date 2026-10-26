@@ -39,6 +39,7 @@ import { loadForecast, searchPlaces } from './weather'
 import HomeConnection from './HomeConnection'
 import ShoppingList from './ShoppingList'
 import WeeklyAgenda from './WeeklyAgenda'
+import { weekStart, addDays } from './calendar'
 import { useHomeAssistant } from './useHomeAssistant'
 import { homeAssistant, REMINDER_ENTITIES } from './home-assistant'
 import './App.css'
@@ -178,7 +179,11 @@ export default function App() {
   }, [place, refresh, today])
   const weatherDays =
     weatherState === 'ready' || weatherState === 'demo'
-      ? days.filter((day) => day.date >= today)
+      ? days.filter(
+          (day) =>
+            day.date >= weekStart(today) &&
+            day.date < addDays(weekStart(today), 7),
+        )
       : []
   const rain = getRainAlert(weatherDays, now)
   const visibleLights = home.enabled
@@ -456,33 +461,30 @@ export default function App() {
                   </button>
                 </div>
               )}
-              <div className="week">
-                {weatherDays.map((day) => (
-                  <div
-                    className={`day ${day.date === today ? 'today' : ''}`}
-                    key={day.date}
-                  >
-                    <span className="day-label">
-                      {day.date === today
-                        ? 'Oggi'
-                        : new Date(`${day.date}T12:00:00`).toLocaleDateString(
-                            'it-IT',
-                            { weekday: 'short' },
-                          )}
-                    </span>
-                    <span className="day-date">
-                      {new Date(`${day.date}T12:00:00`).getDate()}
-                    </span>
-                    <WeatherIcon code={day.code} />
-                    <span className="sr-only">{day.label}</span>
-                    <div className="temperature">
-                      {Math.round(day.max)}° <span>{Math.round(day.min)}°</span>
+              <WeeklyAgenda
+                today={today}
+                renderWeather={(date) => {
+                  const day = weatherDays.find((item) => item.date === date)
+                  return day ? (
+                    <div className="day">
+                      <WeatherIcon code={day.code} />
+                      <span className="sr-only">{day.label}</span>
+                      <div className="temperature">
+                        {Math.round(day.max)}°{' '}
+                        <span>{Math.round(day.min)}°</span>
+                      </div>
+                      <span className="weather-label">{day.label}</span>
+                      {date < today && (
+                        <span className="past-weather">Dati passati</span>
+                      )}
                     </div>
-                    <span className="weather-label">{day.label}</span>
-                  </div>
-                ))}
-              </div>
-              <WeeklyAgenda today={today} />
+                  ) : (
+                    <div className="day-weather-missing">
+                      Meteo non disponibile
+                    </div>
+                  )
+                }}
+              />
               <div className="card-foot">
                 <span>
                   {weatherState === 'ready'

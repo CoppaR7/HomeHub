@@ -1,6 +1,6 @@
 # Aggiornare HomeHub sul QNAP: schermata 16:9 e calendario
 
-Usa **HomeHub-QNAP-aggiornamento-Calendario.zip**. Contiene solo la dashboard compilata e questa guida. Non contiene configurazioni Home Assistant, Compose, credenziali o automazioni. Non occorre reinstallare il contenitore.
+Usa **HomeHub-QNAP-aggiornamento-Colonne.zip**. Contiene solo la dashboard compilata e questa guida. Non contiene configurazioni Home Assistant, Compose, credenziali o automazioni. Non occorre reinstallare il contenitore.
 
 ## Copia con File Station
 
@@ -14,7 +14,7 @@ Le luci, l’entità Bring! `todo.casettolina`, gli interruttori persistenti e l
 
 ## Schermata del tablet 1920×1080
 
-La spesa è il primo riquadro, a sinistra. A destra compaiono **La settimana**, con meteo compatto e impegni, e **Prima di uscire…**. I tre riquadri rientrano nella prima schermata in formato 16:9, mentre le luci si raggiungono scorrendo verso il basso. Le liste che superano lo spazio disponibile scorrono all’interno del proprio riquadro: nessun elemento viene eliminato o limitato a un numero fisso.
+La spesa è il primo riquadro, a sinistra. A destra compaiono **La settimana**, con meteo compatto e impegni, e **Prima di uscire…**. Nel riquadro settimanale, le sette colonne allineano meteo e impegni giorno per giorno, da lunedì a domenica. I tre riquadri rientrano nella prima schermata in formato 16:9, mentre le luci si raggiungono scorrendo verso il basso. Le liste che superano lo spazio disponibile scorrono all’interno del proprio riquadro; per gli eventi, ogni giorno ha il proprio elenco scorrevole. Su telefono le colonne settimanali si raggiungono scorrendo orizzontalmente dentro il riquadro: nessun elemento viene eliminato o limitato a un numero fisso.
 
 La pagina usa l’area utile del browser: se Chrome mostra barre o controlli, lo spazio può essere inferiore ai 1920×1080 fisici. Il pulsante **Schermo intero** e l’orientamento orizzontale permettono di usare meglio il tablet. Su telefono i riquadri rimangono in ordine spesa, settimana, promemoria, luci, su una colonna.
 
@@ -27,7 +27,7 @@ Il collegamento `calendar.google.com/calendar/u/0?cid=…` apre un calendario ne
 3. Autorizza l’account che può accedere al calendario condiviso del link. In Home Assistant assicurati di aver abilitato il calendario desiderato e che la relativa entità `calendar.…` sia disponibile. Verifica prima nella pagina Calendario di Home Assistant che un suo evento compaia.
 4. Ricarica HomeHub. Dentro **La settimana → Impegni**, seleziona il calendario dal menu **Calendario Home Assistant**. La scelta viene salvata solo nel browser del tablet. Puoi cambiarla premendo il nome del calendario accanto a **Impegni**.
 
-HomeHub usa la sessione OAuth/WebSocket Home Assistant esistente e legge `calendar.get_events`: non crea né modifica eventi. Mostra da oggi ai prossimi sei giorni, come il meteo, con orari nel fuso **Europe/Rome**. Include gli eventi di più giorni e quelli di tutta la giornata, rispettando la fine esclusiva degli eventi giornalieri. Rilegge ogni minuto, al cambio del giorno italiano e alle variazioni segnalate dall’entità; il pulsante **Aggiorna impegni** forza una nuova lettura. Google può avere tempi di sincronizzazione propri.
+HomeHub usa la sessione OAuth/WebSocket Home Assistant esistente e legge `calendar.get_events`: non crea né modifica eventi. Mostra la settimana corrente da **lunedì a domenica**, con orari nel fuso **Europe/Rome**. Ogni giorno occupa una colonna: giorno e data, meteo e temperature, poi gli impegni di quella stessa data. Per i giorni già trascorsi vengono richiesti anche i dati meteo dei sei giorni precedenti, indicati come «Dati passati»; se un dato manca viene segnalato, senza sostituirlo con un’altra data. Include gli eventi di più giorni e quelli di tutta la giornata, rispettando la fine esclusiva degli eventi giornalieri. Rilegge ogni minuto, al cambio del giorno italiano e alle variazioni segnalate dall’entità; il pulsante **Aggiorna impegni** forza una nuova lettura. Google può avere tempi di sincronizzazione propri.
 
 Finché il calendario non è collegato e selezionato, il riquadro mostra le istruzioni. Errori e disconnessioni non vengono presentati come una settimana senza impegni. La scelta del calendario non cambia le impostazioni del meteo, il collegamento delle luci, Bring! o i promemoria Alexa.
 
