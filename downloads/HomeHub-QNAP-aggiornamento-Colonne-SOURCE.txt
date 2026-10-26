@@ -1,0 +1,4 @@
+Source: c561e6d398a5bbd38e617638bf0b7cff103a4d1d
+PR: https://github.com/CoppaR7/HomeHub/pull/1
+SHA256: 35b3cfd078301ae329203182698ca6bc4d82b38435843937807ac8a31f4fd59b
+Artifact: HomeHub-QNAP-aggiornamento-Colonne.zip
